@@ -6,7 +6,7 @@
 
 QT       += core gui
 QT      += sql
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
 TARGET = test_qt_app
 TEMPLATE = app
@@ -17,11 +17,13 @@ SOURCES += main.cpp\
         mainwindow.cpp \
     vshieldreader.cpp \
     shield.cpp \
-    facestate.cpp
+    facestate.cpp \
+    qcustomplot.cpp
 
 HEADERS  += mainwindow.h \
     vshieldreader.h \
     shield.h \
-    facestate.h
+    facestate.h \
+    qcustomplot.h
 
 FORMS    += mainwindow.ui

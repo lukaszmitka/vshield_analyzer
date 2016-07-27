@@ -354,8 +354,8 @@ bool VShieldReader::read_next_entry(Shield *shield, std::ifstream &file, std::ve
     unsigned char count = 0;
     long system_bits = 0;
     long error_bits = 0;
-    long coal_line_1, support_pos_2, conveyor_pos_3, cut_line_4, target_line_5, sensor_2, sensor_3;
-    unsigned int states[7];
+    long coal_line_1, support_pos_2, conveyor_pos_3, cut_line_4, target_line_5, sensor_2, sensor_3, sensor_4;
+    unsigned int states[8];
 
     int pattern_length = (int)pattern.size();
     file.seekg(*position, file.beg);
@@ -425,8 +425,10 @@ bool VShieldReader::read_next_entry(Shield *shield, std::ifstream &file, std::ve
                 ((long) (unsigned char) shield_buf[35]) * 0x100 +
                 (long) (unsigned char) shield_buf[34];
         states[6] = shield_buf[36];
+        sensor_4 = ((long) (unsigned char) shield_buf[38]) * 0x100 +
+                (long) (unsigned char) shield_buf[37];
         //logfile << timestamp << ", " << shield_number << ", " << sensor_2 << ", " << sensor_3 << std::endl;
-        Shield tmp(shield_number, coal_line_1, sensor_2, sensor_3);
+        Shield tmp(shield_number, sensor_2, sensor_3, sensor_4, coal_line_1, support_pos_2, conveyor_pos_3);
         *shield = tmp;
         *position = file.tellg();
         *timestamp_update = timestamp;

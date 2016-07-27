@@ -4,12 +4,15 @@ Shield::Shield(){
 
 }
 
-Shield::Shield(int id, int coal_line, int pressure_1, int pressure_2)
+Shield::Shield(int id, int pressure_1, int pressure_2, int ramstroke, int coal_line, int support_pos, int conveyor_pos)
 {
     shieldNumber = id;
-    coalLine = coal_line;
     pressure1 = pressure_1;
     pressure2 = pressure_2;
+    ramStroke = ramstroke;
+    coalLine = coal_line;
+    supportPos = support_pos;
+    conveyorPos = conveyor_pos;
 }
 
 std::string Shield::string_desc(){

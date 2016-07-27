@@ -1,25 +1,5 @@
 #include "mainwindow.h"
 
-QMenu *fileMenu;
-QAction *qAction_close;
-//QAction *qAction_one;
-QAction *qAction_select_existing_db;
-QAction *qAction_create_db;
-
-QAction *qAction_openVShield;
-QAction *qAction_analyze_vshield;
-
-QString db_file;
-QSqlDatabase db;
-QSqlQuery query;
-
-const static int DATABASE_APP_ID = 700612650;
-
-VShieldReader *vShieldReader;
-
-bool db_selected = false;
-bool vshield_selected = false;
-
 MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindow)
 {
     //QTextCodec::setCodecForTr (QTextCodec::codecForName ("Windows-1250"));
@@ -27,8 +7,18 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     ui->setupUi(this);
     setWindowTitle(tr("VShield analyzer"));
     setMinimumSize(300, 300);
-    resize(400, 250);
+    resize(1000, 800);
     //showFullScreen();
+
+    // give the axes some labels:
+    ui->customPlot->xAxis->setLabel("Czas");
+    ui->customPlot->yAxis->setLabel("Wartość");
+    ui->customPlot->setAutoAddPlottableToLegend(true);
+    ui->customPlot->legend->setVisible(true);
+    ui->customPlot->legend->setFont(QFont("Helvetica", 9));
+
+    // Allow user to drag axis ranges with mouse, zoom with mouse wheel and select graphs by clicking:
+    ui->customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
 
     //qAction_one = new QAction(tr("&Nowy"));
     // qAction_one->setStatusTip("Nowy plik");
@@ -73,15 +63,13 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     fileMenu->addAction(qAction_openVShield);
     fileMenu->addAction(qAction_analyze_vshield);
     fileMenu->addSeparator();
-
     fileMenu->addAction(qAction_close);
     connect(fileMenu, SIGNAL(aboutToShow()),this, SLOT(setActiveActions()));
 
-    QString qStr("tooltip");
-    statusBar()->showMessage(qStr,0);
+    populate_shield_list(db);
+    connect(ui->shieldList, SIGNAL(itemClicked(QListWidgetItem*)), this, SLOT(shieldClicked(QListWidgetItem*)));
 
     vShieldReader = new VShieldReader();
-
     //QCoreApplication.addLibraryPath(".");
 }
 
@@ -110,19 +98,103 @@ void MainWindow::nowy_plik()
 void MainWindow::vShieldAnalyze(){
     std::vector <FaceState> facestates;
     facestates = vShieldReader->extract_data();
-    std::cout << "Entries found: " << facestates.size() << std::endl;
-
-    for (std::vector<FaceState>::iterator it = facestates.begin() ; it != facestates.end(); ++it){
-        std::cout << (*it).get_status() << std::endl;
-    }
-
-    /*if(vShieldReader->extract_data()==0){
-
-    } else {
+    if(facestates.size()==0){
         QString qStr("Błąd pliku VShield");
         statusBar()->showMessage(qStr,0);
-    }*/
+    } else{
+        std::cout << "Entries found: " << facestates.size() << std::endl;
+        int insert_counter = 0;
+        check_shields_table(facestates.at(0).get_state());
+        for (std::vector<FaceState>::iterator fs = facestates.begin() ; fs != facestates.end(); ++fs){
+            //std::cout << (*fs).get_status() << std::endl;
+            std::vector <Shield> current_state = (*fs).get_state();
+            QDateTime current_timestamp = (*fs).get_timestamp();
+            int64_t timestamp_epoch = current_timestamp.currentMSecsSinceEpoch();
+            QString queryCheckTS("SELECT * FROM timestamps WHERE timestamp='");
+            queryCheckTS.append(std::to_string(timestamp_epoch).c_str());
+            queryCheckTS.append("';");
+            query.exec(queryCheckTS);
+            if(query.next()){
+                std::cout << "Timestamp found in database, skip updating" << std::endl;
+            } else {
+                std::cout << "Inserting face state " << insert_counter << " of " << facestates.size() << std::endl;
+                insert_counter++;
+                QString queryInsertTS( "INSERT INTO timestamps VALUES (" );
+                queryInsertTS.append(std::to_string(timestamp_epoch).c_str());
+                queryInsertTS.append( ");" );
+                if(query.exec(queryInsertTS)){
+                    query.exec("BEGIN");
+                    for (std::vector <Shield>::iterator cur_st = current_state.begin(); cur_st !=current_state.end(); cur_st++){
+                        int id = (*cur_st).get_id();
+                        int pressure_1 = (*cur_st).get_pressure_1();
+                        int pressure_2 = (*cur_st).get_pressure_2();
+                        int ramStroke = (*cur_st).get_ramstroke();
+                        int coal_line = (*cur_st).get_coal_line();
+                        int suport_pos = (*cur_st).get_support_pos();
+                        int conv_pos = (*cur_st).get_conveyour_pos();
+                        // fields in table states:  time, shield, press2 press3, coalline
+                        QString queryInsertShield("INSERT INTO states VALUES (");
+                        queryInsertShield.append(std::to_string(timestamp_epoch).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(id).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(pressure_1).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(pressure_2).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(ramStroke).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(coal_line).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(suport_pos).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(conv_pos).c_str());
+                        queryInsertShield.append(");");
+                        if(query.exec(queryInsertShield)){
+                            //std::cout << "Inserted new shield: " << id << " with query: " << queryInsertShield.toLocal8Bit().data() << std::endl;
+                        }
+                    }
+                    query.exec("COMMIT");
+                } else {
+                    std::cout << "Unable to add new timestamp int table" << std::endl;
+                }
+            }
+        }
+    }
+
     vshield_selected = false;
+}
+
+bool MainWindow::check_shields_table(std::vector <Shield> current_state){
+    QString queryStr("SELECT * FROM shields");
+    query.exec(queryStr);
+    QString shield_list("Shields found in db: ");
+    int shield_no = 0;
+    while(query.next()){
+        QString shield_id = query.value(0).toString();
+        //std::cout << "foreign_keys: " << status.toLocal8Bit().constData() << std::endl;
+        shield_list.append(shield_id);
+        shield_list.append(", ");
+        shield_no++;
+    }
+    if(shield_no>0){
+        shield_list.append(" Shield count: ");
+        shield_list.append(std::to_string(shield_no).c_str());
+        std::cout << shield_list.toLocal8Bit().data() << std::endl;
+    } else {
+        std::cout << "Database semms to be just created, insterting new list of shields" << std::endl;
+        for (std::vector <Shield>::iterator cur_st = current_state.begin(); cur_st !=current_state.end(); cur_st++){
+            int id = (*cur_st).get_id();
+            //std::cout << "Insert new shield: " << id << std::endl;
+            QString queryInsert("INSERT INTO shields VALUES (");
+            queryInsert.append(std::to_string(id).c_str());
+            queryInsert.append(");");
+            if(query.exec(queryInsert)){
+                std::cout << "Inserted new shield: " << id << " with query: " << queryInsert.toLocal8Bit().data() << std::endl;
+            }
+        }
+    }
+    return true;
 }
 
 void MainWindow::openVShieldFile(){
@@ -145,12 +217,13 @@ void MainWindow::openDatabase(){
         statusBar()->showMessage("Nie wybrano żadnego pliku",0);
         db_selected = false;
         return;
-    }else {
+    } else {
         QFile *database_file = new QFile(database_fileName);
         if(database_file->exists()){
             if(open_database(database_fileName)){
                 std::cout << "Otwarto bazę danych" << std::endl;
                 statusBar()->showMessage("Otwarto bazę danych",0);
+                populate_shield_list(db);
             } else {
                 std::cout << "Błąd otwierania bazy danych." << std::endl;
                 statusBar()->showMessage("Błąd otwierania bazy danych.",0);
@@ -160,6 +233,160 @@ void MainWindow::openDatabase(){
             statusBar()->showMessage("Plik nie istnieje",0);
         }
     }
+}
+
+bool MainWindow::populate_shield_list(QSqlDatabase database){
+    if(!database.isOpen()){
+        std::cout << "Database not opened"<< std::endl;
+        return false;
+    }
+    query = QSqlQuery(database);
+    query.exec("SELECT * FROM shields;");
+    while(query.next()){
+        //if(query.value(0).toInt()==0){
+        std::cout << "Shield number " << query.value(0).toInt() << std::endl;
+        QString str("Shield ");
+        str.append(query.value(0).toString());
+        QListWidgetItem *tmp_item = new QListWidgetItem(str, 0, 1);
+        tmp_item->setData(Qt::UserRole, QVariant(query.value(0).toInt()));
+        checkboxShieldList.push_back(*tmp_item);
+        ui->shieldList->addItem(tmp_item);
+    }
+
+    std::cout << "add item to list" << std::endl;
+    QString str("shield2");
+    //item1 = new QListWidgetItem(str, ui->shieldList, 1);
+    //ui->shieldList->addItem(item1);
+    //ui->shieldList->addItem("shield1");
+    //QListWidgetItem *item = ui->shieldList->takeItem(ui->shieldList->currentRow());
+    //item->clone();
+    //QListWidgetItem item5 = *item;
+    //item5.setText("shield4");
+    //item->setText("shield3");
+    //ui->shieldList->addItem(item);
+    //ui->shieldList->addItem();
+    return true;
+}
+
+void MainWindow::shieldClicked(QListWidgetItem* item){
+    int shield_id = item->data(Qt::UserRole).toInt();
+    std::cout << "Clicked " << item->text().toLocal8Bit().data() << " with data " << shield_id << std::endl;
+    if(ui->customPlot->graphCount()!=0){
+        int current = ui->customPlot->graph(0)->property("ID").toInt();
+        //std::cout << "Last used shield: " << current << std::endl;
+        if(current == shield_id){
+            return;
+        } else {
+            //int found = ui->shieldList->item(current-1)->data(Qt::UserRole).toInt();
+            //std::cout << "Deselect last shield, at pos "<< std::to_string(current-1) << " found " << std::to_string(found) << std::endl;
+            ui->shieldList->item(current-1)->setBackgroundColor(Qt::white);
+            ui->shieldList->item(current-1)->setForeground(Qt::black);
+        }
+    }
+    if(!db.isOpen()){
+        std::cout << "Database not opened"<< std::endl;
+        return;
+    }
+    std::cout << "Working on: " << db.databaseName().toLocal8Bit().data() << std::endl;
+    item->setForeground(Qt::green);
+    item->setBackgroundColor(Qt::lightGray);
+    query = QSqlQuery(db);
+    QString query_str("SELECT * FROM states WHERE shield=");
+    query_str.append(QString(std::to_string(shield_id).c_str()));
+    query_str.append(";");
+    std::cout << "Query to exec: " << query_str.toLocal8Bit().data() << std::endl;
+    if(query.exec(query_str)){
+        std::cout << "Query executed succesfully"<< std::endl;
+    } else {
+        std::cout << "Query execution error"<< std::endl;
+        return;
+    }
+
+    QVector<double> time, press2, press3, ramstroke, coalLine, suppPos, convPos;
+    //int begin=0, end=0;
+    int occ=0;
+    while(query.next()){
+        // if(query.first()){
+        //    begin = query.value(0).toInt();
+        //    std::cout << "Begin at time: " << begin << std::endl;
+        // }
+        // if(query.last()){
+        //    end = query.value(0).toInt();
+        //    std::cout << "End at time: " << end << std::endl;
+        //    std::cout << "Occurences: " << occ << std::endl;
+        //}
+        time.push_back(query.value(0).toInt());
+        press2.push_back(query.value(2).toInt());
+        press3.push_back(query.value(3).toInt());
+        ramstroke.push_back(query.value(4).toInt());
+        coalLine.push_back(query.value(5).toInt());
+        suppPos.push_back(query.value(6).toInt());
+        convPos.push_back(query.value(7).toInt());
+        occ++;
+    }
+    std::cout << "Occurences: " << occ << std::endl;
+    std::cout << "Time length: " << time.length() << std::endl;
+    if(ui->customPlot->graphCount()==0){
+        ui->customPlot->xAxis->setRange(time[0], time[time.size()-1]);
+        ui->customPlot->yAxis->setRange(0, 450);
+    }
+    ui->customPlot->clearGraphs();
+
+    QPen pen;
+    int i;
+    ui->customPlot->addGraph();
+    i = ui->customPlot->graphCount()-1;
+    ui->customPlot->graph(i)->setData(time, press2);
+    ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
+    ui->customPlot->graph(i)->setName("Ciśnienie 2");
+    pen.setColor(QColor(qSin((i+1)*1+1.2)*80+80, qSin((i+1)*0.3+0)*80+80, qSin((i+1)*0.3+1.5)*80+80));
+    ui->customPlot->graph()->setPen(pen);
+    //ui->customPlot->graph(i)->setLineStyle((QCPGraph::LineStyle)(i+1));
+    //customPlot->graph()->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 5));
+    //ui->customPlot->graph(ui->customPlot->graphCount()-1)->addToLegend();
+
+    ui->customPlot->addGraph();
+    i = ui->customPlot->graphCount()-1;
+    ui->customPlot->graph(i)->setData(time, press3);
+    ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
+    ui->customPlot->graph(i)->setName("Ciśnienie 3");
+    pen.setColor(QColor(qSin((i+1)*1+1.2)*80+80, qSin((i+1)*0.3+0)*80+80, qSin((i+1)*0.3+1.5)*80+80));
+    ui->customPlot->graph()->setPen(pen);
+
+    ui->customPlot->addGraph();
+    i = ui->customPlot->graphCount()-1;
+    ui->customPlot->graph(i)->setData(time, ramstroke);
+    ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
+    ui->customPlot->graph(i)->setName("Droga przesuwnika");
+    pen.setColor(QColor(qSin((i+1)*1+1.2)*80+80, qSin((i+1)*0.3+0)*80+80, qSin((i+1)*0.3+1.5)*80+80));
+    ui->customPlot->graph()->setPen(pen);
+
+   /* ui->customPlot->addGraph();
+    i = ui->customPlot->graphCount()-1;
+    ui->customPlot->graph(i)->setData(time, coalLine);
+    ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
+    ui->customPlot->graph(i)->setName("Linia węgla");
+    pen.setColor(QColor(qSin((i+1)*1+1.2)*80+80, qSin((i+1)*0.3+0)*80+80, qSin((i+1)*0.3+1.5)*80+80));
+    ui->customPlot->graph()->setPen(pen);
+
+    ui->customPlot->addGraph();
+    i = ui->customPlot->graphCount()-1;
+    ui->customPlot->graph(i)->setData(time, suppPos);
+    ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
+    ui->customPlot->graph(i)->setName("Pozycja obudowy");
+    pen.setColor(QColor(qSin((i+1)*1+1.2)*80+80, qSin((i+1)*0.3+0)*80+80, qSin((i+1)*0.3+1.5)*80+80));
+    ui->customPlot->graph()->setPen(pen);
+
+    ui->customPlot->addGraph();
+    i = ui->customPlot->graphCount()-1;
+    ui->customPlot->graph(i)->setData(time, convPos);
+    ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
+    ui->customPlot->graph(i)->setName("Pozycja przenośnika");
+    pen.setColor(QColor(qSin((i+1)*1+1.2)*80+80, qSin((i+1)*0.3+0)*80+80, qSin((i+1)*0.3+1.5)*80+80));
+    ui->customPlot->graph()->setPen(pen);
+*/
+    ui->customPlot->replot();
+
 }
 
 void MainWindow::newDatabase(){
@@ -185,12 +412,10 @@ void MainWindow::newDatabase(){
                 return;
             }
         } else {
-            // TODO create new database
             open_database(database_fileName, true);
         }
     }
 }
-
 
 bool MainWindow::open_database(QString database_name){
     return open_database(database_name, false);
@@ -216,6 +441,21 @@ bool MainWindow::open_database(QString database_name, bool init){
         } else {
             std::cout << "unable to set application id" << std::endl;
         }
+        if(query.exec("CREATE TABLE timestamps(timestamp INTEGER PRIMARY KEY);")){
+            std::cout << "Table timestamps created" << std::endl;
+        } else {
+            std::cout << "Error 1" << std::endl;
+        }
+        if(query.exec("CREATE TABLE shields(shield_number INTEGER PRIMARY KEY);")){
+            std::cout << "Table shields created" << std::endl;
+        } else {
+            std::cout << "Error 2" << std::endl;
+        }
+        if(query.exec("CREATE TABLE states(time INT, shield INT, pressure2 INT, pressure3 INT, ramstroke INT, coal_line INT, support_pos INT, conveyor_pos INT, FOREIGN KEY(time) REFERENCES timestamps(timestamp), FOREIGN KEY(shield) REFERENCES shields(shield_number));")){
+            std::cout << "Table states created" << std::endl;
+        } else {
+            std::cout << "Error 3" << std::endl;
+        }
     }
     if(check_db_integrity(db)){
         db_selected = true;
@@ -236,7 +476,7 @@ bool MainWindow::check_db_integrity(QSqlDatabase database){
     query = QSqlQuery(database);
     query.exec("PRAGMA foreign_keys;");
     if(query.next()){
-        QString status = query.value(0).toString();
+        //QString status = query.value(0).toString();
         //std::cout << "foreign_keys: " << status.toLocal8Bit().constData() << std::endl;
         if(query.value(0).toInt()==0){
             if(query.exec("PRAGMA foreign_keys = ON;")){
@@ -248,7 +488,7 @@ bool MainWindow::check_db_integrity(QSqlDatabase database){
         }
         query.exec("PRAGMA application_id;");
         if(query.next()){
-            QString status = query.value(0).toString();
+            //QString status = query.value(0).toString();
             //std::cout << "Application_id: " << status.toLocal8Bit().constData() << std::endl;
             if(query.value(0).toInt()==DATABASE_APP_ID){
                 return true;
@@ -258,6 +498,15 @@ bool MainWindow::check_db_integrity(QSqlDatabase database){
     return false;
 }
 
+enum MainWindow::shield_params{
+    press_1 = 1,
+    press_2 = 2,
+    ramstrk = 3,
+    coalLn = 4,
+    supp_Pos = 5,
+    conv_Pos = 6
+};
+
 MainWindow::~MainWindow()
 {
     if(db.isOpen()){
@@ -265,8 +514,3 @@ MainWindow::~MainWindow()
     }
     delete ui;
 }
-
-/*if(query.exec("PRAGMA application_id = 12345;")){
-   std::cout << "application_id set to 12345 "<< std::endl;
-}*/
-//db.exec("CREATE TABLE LOG( ID INT PRIMARY KEY NOT NULL, PRESSURE INT, COAL_LINE INT);");
