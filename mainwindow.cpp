@@ -84,98 +84,6 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     //QCoreApplication.addLibraryPath(".");
 }
 
-void MainWindow::setActiveActions(){
-    //std::cout << "Set active menu items"<<std::endl;
-    if(db_selected){
-        qAction_openVShield->setEnabled(true);
-    } else {
-        qAction_openVShield->setEnabled(false);
-    }
-
-    if(db_selected && vshield_selected){
-        qAction_analyze_vshield->setEnabled(true);
-    } else {
-        qAction_analyze_vshield->setEnabled(false);
-    }
-}
-
-void MainWindow::nowy_plik()
-{
-    QString qStr("New File");
-    statusBar()->showMessage(qStr,0);
-    return;
-}
-
-void MainWindow::vShieldAnalyze(){
-    std::vector <FaceState> facestates;
-    facestates = vShieldReader->extract_data();
-    if(facestates.size()==0){
-        QString qStr("Błąd pliku VShield");
-        statusBar()->showMessage(qStr,0);
-    } else{
-        std::cout << "Entries found: " << facestates.size() << std::endl;
-        int insert_counter = 0;
-        check_shields_table(facestates.at(0).get_state());
-        for (std::vector<FaceState>::iterator fs = facestates.begin() ; fs != facestates.end(); ++fs){
-            //std::cout << (*fs).get_status() << std::endl;
-            std::vector <Shield> current_state = (*fs).get_state();
-            QDateTime current_timestamp = (*fs).get_timestamp();
-            int64_t timestamp_epoch = current_timestamp.toMSecsSinceEpoch();
-            QString queryCheckTS("SELECT * FROM timestamps WHERE timestamp='");
-            queryCheckTS.append(std::to_string(timestamp_epoch).c_str());
-            queryCheckTS.append("';");
-            query.exec(queryCheckTS);
-            if(query.next()){
-                std::cout << "Timestamp found in database, skip updating" << std::endl;
-            } else {
-                std::cout << "Inserting face state " << insert_counter << " of " << facestates.size() << " with timestamp " << timestamp_epoch << std::endl;
-                insert_counter++;
-                QString queryInsertTS( "INSERT INTO timestamps VALUES (" );
-                queryInsertTS.append(std::to_string(timestamp_epoch).c_str());
-                queryInsertTS.append( ");" );
-                if(query.exec(queryInsertTS)){
-                    query.exec("BEGIN");
-                    for (std::vector <Shield>::iterator cur_st = current_state.begin(); cur_st !=current_state.end(); cur_st++){
-                        int id = (*cur_st).get_id();
-                        int pressure_1 = (*cur_st).get_pressure_1();
-                        int pressure_2 = (*cur_st).get_pressure_2();
-                        int ramStroke = (*cur_st).get_ramstroke();
-                        int coal_line = (*cur_st).get_coal_line();
-                        int suport_pos = (*cur_st).get_support_pos();
-                        int conv_pos = (*cur_st).get_conveyour_pos();
-                        // fields in table states:  time, shield, press2 press3, coalline
-                        QString queryInsertShield("INSERT INTO states VALUES (");
-                        queryInsertShield.append(std::to_string(timestamp_epoch).c_str());
-                        queryInsertShield.append(", ");
-                        queryInsertShield.append(std::to_string(id).c_str());
-                        queryInsertShield.append(", ");
-                        queryInsertShield.append(std::to_string(pressure_1).c_str());
-                        queryInsertShield.append(", ");
-                        queryInsertShield.append(std::to_string(pressure_2).c_str());
-                        queryInsertShield.append(", ");
-                        queryInsertShield.append(std::to_string(ramStroke).c_str());
-                        queryInsertShield.append(", ");
-                        queryInsertShield.append(std::to_string(coal_line).c_str());
-                        queryInsertShield.append(", ");
-                        queryInsertShield.append(std::to_string(suport_pos).c_str());
-                        queryInsertShield.append(", ");
-                        queryInsertShield.append(std::to_string(conv_pos).c_str());
-                        queryInsertShield.append(");");
-                        if(query.exec(queryInsertShield)){
-                            //std::cout << "Inserted new shield: " << id << " with query: " << queryInsertShield.toLocal8Bit().data() << std::endl;
-                        }
-                    }
-                    query.exec("COMMIT");
-                } else {
-                    std::cout << "Unable to add new timestamp int table" << std::endl;
-                }
-            }
-        }
-    }
-
-    vshield_selected = false;
-}
-
 bool MainWindow::check_shields_table(std::vector <Shield> current_state){
     QString queryStr("SELECT * FROM shields");
     query.exec(queryStr);
@@ -206,44 +114,6 @@ bool MainWindow::check_shields_table(std::vector <Shield> current_state){
         }
     }
     return true;
-}
-
-void MainWindow::openVShieldFile(){
-    QString filename = QFileDialog::getOpenFileName(this, tr("Otwórz plik VShield"),tr(""),tr("Pliki VShield (*.LogVShield10)"));
-    vShieldReader = new VShieldReader(filename.toStdString());
-    if(vShieldReader->get_vshield_file_state()){
-        QString statuBarMessage("Wybrany plik: ");
-        statuBarMessage.append(vShieldReader->get_vshield_file_name().c_str());
-        statusBar()->showMessage(statuBarMessage,0);
-        vshield_selected = true;
-    } else {
-        vshield_selected = false;
-    }
-}
-
-void MainWindow::openDatabase(){
-    QString database_fileName = QFileDialog::getOpenFileName(this, tr("Otwórz bazę danych"),tr(""),tr("Baza danych SQlite (*.db3)"));
-    if(database_fileName.isEmpty()){
-        std::cout << "Brak wybranego pliku" << std::endl;
-        statusBar()->showMessage("Nie wybrano żadnego pliku",0);
-        db_selected = false;
-        return;
-    } else {
-        QFile *database_file = new QFile(database_fileName);
-        if(database_file->exists()){
-            if(open_database(database_fileName)){
-                std::cout << "Otwarto bazę danych" << std::endl;
-                statusBar()->showMessage("Otwarto bazę danych",0);
-                populate_shield_list(db);
-            } else {
-                std::cout << "Błąd otwierania bazy danych." << std::endl;
-                statusBar()->showMessage("Błąd otwierania bazy danych.",0);
-            }
-        } else {
-            std::cout << "Plik nie istnieje" << std::endl;
-            statusBar()->showMessage("Plik nie istnieje",0);
-        }
-    }
 }
 
 bool MainWindow::populate_shield_list(QSqlDatabase database){
@@ -279,6 +149,10 @@ bool MainWindow::populate_shield_list(QSqlDatabase database){
     return true;
 }
 
+/** Slot for UI utton action. Update plots accordingly to selected shields.
+ * @brief MainWindow::shieldClicked
+ * @param item Clicked shield.
+ */
 void MainWindow::shieldClicked(QListWidgetItem* item){
     int shield_id = item->data(Qt::UserRole).toInt();
     std::cout << "Clicked " << item->text().toLocal8Bit().data() << " with data " << shield_id << std::endl;
@@ -447,6 +321,97 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
 
 }
 
+/** Slot for UI button action. Select file and check if it is compatible with VShield standard.
+ * @brief MainWindow::openVShieldFile
+ */
+void MainWindow::openVShieldFile(){
+    QString filename = QFileDialog::getOpenFileName(this, tr("Otwórz plik VShield"),tr(""),tr("Pliki VShield (*.LogVShield10)"));
+    vShieldReader = new VShieldReader(filename.toStdString());
+    if(vShieldReader->get_vshield_file_state()){
+        QString statuBarMessage("Wybrany plik: ");
+        statuBarMessage.append(vShieldReader->get_vshield_file_name().c_str());
+        statusBar()->showMessage(statuBarMessage,0);
+        vshield_selected = true;
+    } else {
+        vshield_selected = false;
+    }
+}
+
+/** Slot for UI button action. Extract data from VShield file and save it to database.
+ * @brief MainWindow::vShieldAnalyze
+ */
+void MainWindow::vShieldAnalyze(){
+    std::vector <FaceState> facestates;
+    facestates = vShieldReader->extract_data();
+    if(facestates.size()==0){
+        QString qStr("Błąd pliku VShield");
+        statusBar()->showMessage(qStr,0);
+    } else{
+        std::cout << "Entries found: " << facestates.size() << std::endl;
+        int insert_counter = 0;
+        check_shields_table(facestates.at(0).get_state());
+        for (std::vector<FaceState>::iterator fs = facestates.begin() ; fs != facestates.end(); ++fs){
+            //std::cout << (*fs).get_status() << std::endl;
+            std::vector <Shield> current_state = (*fs).get_state();
+            QDateTime current_timestamp = (*fs).get_timestamp();
+            int64_t timestamp_epoch = current_timestamp.toMSecsSinceEpoch();
+            QString queryCheckTS("SELECT * FROM timestamps WHERE timestamp='");
+            queryCheckTS.append(std::to_string(timestamp_epoch).c_str());
+            queryCheckTS.append("';");
+            query.exec(queryCheckTS);
+            if(query.next()){
+                std::cout << "Timestamp found in database, skip updating" << std::endl;
+            } else {
+                std::cout << "Inserting face state " << insert_counter << " of " << facestates.size() << " with timestamp " << timestamp_epoch << std::endl;
+                insert_counter++;
+                QString queryInsertTS( "INSERT INTO timestamps VALUES (" );
+                queryInsertTS.append(std::to_string(timestamp_epoch).c_str());
+                queryInsertTS.append( ");" );
+                if(query.exec(queryInsertTS)){
+                    query.exec("BEGIN");
+                    for (std::vector <Shield>::iterator cur_st = current_state.begin(); cur_st !=current_state.end(); cur_st++){
+                        int id = (*cur_st).get_id();
+                        int pressure_1 = (*cur_st).get_pressure_1();
+                        int pressure_2 = (*cur_st).get_pressure_2();
+                        int ramStroke = (*cur_st).get_ramstroke();
+                        int coal_line = (*cur_st).get_coal_line();
+                        int suport_pos = (*cur_st).get_support_pos();
+                        int conv_pos = (*cur_st).get_conveyour_pos();
+                        // fields in table states:  time, shield, press2 press3, coalline
+                        QString queryInsertShield("INSERT INTO states VALUES (");
+                        queryInsertShield.append(std::to_string(timestamp_epoch).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(id).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(pressure_1).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(pressure_2).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(ramStroke).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(coal_line).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(suport_pos).c_str());
+                        queryInsertShield.append(", ");
+                        queryInsertShield.append(std::to_string(conv_pos).c_str());
+                        queryInsertShield.append(");");
+                        if(query.exec(queryInsertShield)){
+                            //std::cout << "Inserted new shield: " << id << " with query: " << queryInsertShield.toLocal8Bit().data() << std::endl;
+                        }
+                    }
+                    query.exec("COMMIT");
+                } else {
+                    std::cout << "Unable to add new timestamp int table" << std::endl;
+                }
+            }
+        }
+    }
+    vshield_selected = false;
+}
+
+/** Slot for UI button action. Create new database or overwrite existing one.
+ * @brief MainWindow::newDatabase
+ */
 void MainWindow::newDatabase(){
     QString database_fileName = QFileDialog::getSaveFileName(this, tr("Utwórz bazę danych"),tr(""),tr("Baza danych SQlite (*.db3)"));
     if(database_fileName.isEmpty()){
@@ -475,9 +440,49 @@ void MainWindow::newDatabase(){
     }
 }
 
+/** Slot for UI button action. Open existing database file.
+ * @brief MainWindow::openDatabase
+ */
+void MainWindow::openDatabase(){
+    QString database_fileName = QFileDialog::getOpenFileName(this, tr("Otwórz bazę danych"),tr(""),tr("Baza danych SQlite (*.db3)"));
+    if(database_fileName.isEmpty()){
+        std::cout << "Brak wybranego pliku" << std::endl;
+        statusBar()->showMessage("Nie wybrano żadnego pliku",0);
+        db_selected = false;
+        return;
+    } else {
+        QFile *database_file = new QFile(database_fileName);
+        if(database_file->exists()){
+            if(open_database(database_fileName)){
+                std::cout << "Otwarto bazę danych" << std::endl;
+                statusBar()->showMessage("Otwarto bazę danych",0);
+                populate_shield_list(db);
+            } else {
+                std::cout << "Błąd otwierania bazy danych." << std::endl;
+                statusBar()->showMessage("Błąd otwierania bazy danych.",0);
+            }
+        } else {
+            std::cout << "Plik nie istnieje" << std::endl;
+            statusBar()->showMessage("Plik nie istnieje",0);
+        }
+    }
+}
+
+/** Open selected database file.
+ * @brief MainWindow::open_database
+ * @param database_name Name of database file to open.
+ * @return True if database was successfully opened, false otherwise.
+ */
 bool MainWindow::open_database(QString database_name){
     return open_database(database_name, false);
 }
+
+/** Open or create selected database file.
+ * @brief MainWindow::open_database
+ * @param database_name Name of database file to open.
+ * @param init Define if create new database, will overwrite existing data.
+ * @return True if database was successfully opened, false otherwise.
+ */
 bool MainWindow::open_database(QString database_name, bool init){
     //QSqlDatabase db_tmp;
     std::cout << "Otwieranie bazy danych" << std::endl;
@@ -524,6 +529,11 @@ bool MainWindow::open_database(QString database_name, bool init){
     }
 }
 
+/** Check if provided database object was created with this application and properly configured.
+ * @brief MainWindow::check_db_integrity
+ * @param database Database object to check.
+ * @return
+ */
 bool MainWindow::check_db_integrity(QSqlDatabase database){
     if(!database.isOpen()){
         if(!database.open()){
@@ -554,6 +564,23 @@ bool MainWindow::check_db_integrity(QSqlDatabase database){
         }
     }
     return false;
+}
+
+/** Slot for menu showup action. Sets active or inactive appropriate buttons.
+ * @brief MainWindow::setActiveActions
+ */
+void MainWindow::setActiveActions(){
+    //std::cout << "Set active menu items"<<std::endl;
+    if(db_selected){
+        qAction_openVShield->setEnabled(true);
+    } else {
+        qAction_openVShield->setEnabled(false);
+    }
+    if(db_selected && vshield_selected){
+        qAction_analyze_vshield->setEnabled(true);
+    } else {
+        qAction_analyze_vshield->setEnabled(false);
+    }
 }
 
 enum MainWindow::shield_params{

@@ -46,7 +46,6 @@ private:
     bool db_selected = false;
     bool vshield_selected = false;
 private slots:
-    void nowy_plik();
     void vShieldAnalyze();
     void openVShieldFile();
     void openDatabase();
