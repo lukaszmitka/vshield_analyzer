@@ -149,7 +149,7 @@ bool MainWindow::populate_shield_list(QSqlDatabase database){
     return true;
 }
 
-/** Slot for UI utton action. Update plots accordingly to selected shields.
+/** Slot for UI button action. Update plots accordingly to selected shields.
  * @brief MainWindow::shieldClicked
  * @param item Clicked shield.
  */
@@ -188,35 +188,27 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
     }
 
     QVector<double> time, press2, press3, ramstroke, coalLine, suppPos, convPos;
-    int max_val=0, tmp_val;
+    double max_val=0, tmp_double;
     int occ=0;
     while(query.next()){
-        /*if(query.first()){
-            int begin = query.value(0).toInt();
-            std::cout << "Begin at time: " << begin << std::endl;
-        }
-        if(query.last()){
-            int end = query.value(0).toInt();
-            std::cout << "End at time: " << end << std::endl;
-            //std::cout << "Occurences: " << occ << std::endl;
-        }*/
         //std::cout << "Shield time: " << query.value(0).toString().toLocal8Bit().data() << ", int: " << query.value(0).toInt() << ", long: " << query.value(0).toLongLong() << std::endl;
         time.push_back(query.value(0).toLongLong()/1000);
-        tmp_val = query.value(2).toInt();
-        if(tmp_val>max_val){
-            max_val=tmp_val;
+        // division to change integer values to MPa
+        tmp_double = query.value(2).toDouble()/10;
+        if(tmp_double>max_val){
+            max_val=tmp_double;
         }
-        press2.push_back(tmp_val);
-        tmp_val = query.value(3).toInt();
-        if(tmp_val>max_val){
-            max_val=tmp_val;
+        press2.push_back(tmp_double);
+        tmp_double = query.value(3).toDouble()/10;
+        if(tmp_double>max_val){
+            max_val=tmp_double;
         }
-        press3.push_back(tmp_val);
-        ramstroke.push_back(query.value(4).toInt());
+        press3.push_back(tmp_double);
+        ramstroke.push_back(query.value(4).toDouble());
         // division to change integer value to meters
-        coalLine.push_back(query.value(5).toInt()/1000);
-        suppPos.push_back(query.value(6).toInt()/1000);
-        convPos.push_back(query.value(7).toInt()/1000);
+        coalLine.push_back(query.value(5).toDouble()/1000);
+        suppPos.push_back(query.value(6).toDouble()/1000);
+        convPos.push_back(query.value(7).toDouble()/1000);
         occ++;
     }
     std::cout << "Occurences: " << occ << std::endl;
@@ -230,7 +222,7 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
     }
     */
 
-    ui->customPlot->yAxis->setRange(-50, max_val+50);
+    ui->customPlot->yAxis->setRange(-0.1*max_val, max_val+0.1*max_val);
     ui->customPlot->xAxis->setRange(time[0]-3600, time[time.size()-1]+3600);
     ui->customPlot->clearGraphs();
 
