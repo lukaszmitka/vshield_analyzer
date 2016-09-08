@@ -11,14 +11,25 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     //showFullScreen();
 
     // give the axes some labels:
-    ui->customPlot->xAxis->setLabel("Czas");
-    ui->customPlot->yAxis->setLabel("Wartość");
+    //ui->customPlot->xAxis->setLabel("Czas");
+    ui->customPlot->yAxis->setLabel("Ciśnienie [MPa]");
+
     ui->customPlot->setAutoAddPlottableToLegend(true);
+
     ui->customPlot->legend->setVisible(true);
     ui->customPlot->legend->setFont(QFont("Helvetica", 9));
+    ui->customPlot->yAxis2->setVisible(true);
+    ui->customPlot->yAxis2->setLabel("Pozycja [m]");
+
+    // configure bottom axis to show date and time instead of number:
+    ui->customPlot->xAxis->setTickLabelType(QCPAxis::ltDateTime);
+    ui->customPlot->xAxis->setDateTimeFormat("dd-MM-yyyy\nHH:mm");
+    // set a more compact font size for bottom and left axis tick labels:
+    ui->customPlot->xAxis->setTickLabelFont(QFont(QFont().family(), 8));
+    //ui->customPlot->yAxis->setTickLabelFont(QFont(QFont().family(), 8));
 
     // Allow user to drag axis ranges with mouse, zoom with mouse wheel and select graphs by clicking:
-    ui->customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
+    //ui->customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
 
     //qAction_one = new QAction(tr("&Nowy"));
     // qAction_one->setStatusTip("Nowy plik");
@@ -109,7 +120,7 @@ void MainWindow::vShieldAnalyze(){
             //std::cout << (*fs).get_status() << std::endl;
             std::vector <Shield> current_state = (*fs).get_state();
             QDateTime current_timestamp = (*fs).get_timestamp();
-            int64_t timestamp_epoch = current_timestamp.currentMSecsSinceEpoch();
+            int64_t timestamp_epoch = current_timestamp.toMSecsSinceEpoch();
             QString queryCheckTS("SELECT * FROM timestamps WHERE timestamp='");
             queryCheckTS.append(std::to_string(timestamp_epoch).c_str());
             queryCheckTS.append("';");
@@ -117,7 +128,7 @@ void MainWindow::vShieldAnalyze(){
             if(query.next()){
                 std::cout << "Timestamp found in database, skip updating" << std::endl;
             } else {
-                std::cout << "Inserting face state " << insert_counter << " of " << facestates.size() << std::endl;
+                std::cout << "Inserting face state " << insert_counter << " of " << facestates.size() << " with timestamp " << timestamp_epoch << std::endl;
                 insert_counter++;
                 QString queryInsertTS( "INSERT INTO timestamps VALUES (" );
                 queryInsertTS.append(std::to_string(timestamp_epoch).c_str());
@@ -303,33 +314,50 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
     }
 
     QVector<double> time, press2, press3, ramstroke, coalLine, suppPos, convPos;
-    //int begin=0, end=0;
+    int max_val=0, tmp_val;
     int occ=0;
     while(query.next()){
-        // if(query.first()){
-        //    begin = query.value(0).toInt();
-        //    std::cout << "Begin at time: " << begin << std::endl;
-        // }
-        // if(query.last()){
-        //    end = query.value(0).toInt();
-        //    std::cout << "End at time: " << end << std::endl;
-        //    std::cout << "Occurences: " << occ << std::endl;
-        //}
-        time.push_back(query.value(0).toInt());
-        press2.push_back(query.value(2).toInt());
-        press3.push_back(query.value(3).toInt());
+        /*if(query.first()){
+            int begin = query.value(0).toInt();
+            std::cout << "Begin at time: " << begin << std::endl;
+        }
+        if(query.last()){
+            int end = query.value(0).toInt();
+            std::cout << "End at time: " << end << std::endl;
+            //std::cout << "Occurences: " << occ << std::endl;
+        }*/
+        //std::cout << "Shield time: " << query.value(0).toString().toLocal8Bit().data() << ", int: " << query.value(0).toInt() << ", long: " << query.value(0).toLongLong() << std::endl;
+        time.push_back(query.value(0).toLongLong()/1000);
+        tmp_val = query.value(2).toInt();
+        if(tmp_val>max_val){
+            max_val=tmp_val;
+        }
+        press2.push_back(tmp_val);
+        tmp_val = query.value(3).toInt();
+        if(tmp_val>max_val){
+            max_val=tmp_val;
+        }
+        press3.push_back(tmp_val);
         ramstroke.push_back(query.value(4).toInt());
-        coalLine.push_back(query.value(5).toInt());
-        suppPos.push_back(query.value(6).toInt());
-        convPos.push_back(query.value(7).toInt());
+        // division to change integer value to meters
+        coalLine.push_back(query.value(5).toInt()/1000);
+        suppPos.push_back(query.value(6).toInt()/1000);
+        convPos.push_back(query.value(7).toInt()/1000);
         occ++;
     }
     std::cout << "Occurences: " << occ << std::endl;
     std::cout << "Time length: " << time.length() << std::endl;
-    if(ui->customPlot->graphCount()==0){
-        ui->customPlot->xAxis->setRange(time[0], time[time.size()-1]);
+    // zoom and interaction disabled, adjust plot axis at every data reload
+    /*
+     if(ui->customPlot->graphCount()==0){
+        std::cout << "Begin time: " << time[0] << ", end time: " << time[time.size()-1] <<  std::endl;
+        ui->customPlot->xAxis->setRange(time[0]-3600, time[time.size()-1]+3600);
         ui->customPlot->yAxis->setRange(0, 450);
     }
+    */
+
+    ui->customPlot->yAxis->setRange(-50, max_val+50);
+    ui->customPlot->xAxis->setRange(time[0]-3600, time[time.size()-1]+3600);
     ui->customPlot->clearGraphs();
 
     QPen pen;
@@ -339,27 +367,57 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
     ui->customPlot->graph(i)->setData(time, press2);
     ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
     ui->customPlot->graph(i)->setName("Ciśnienie 2");
-    pen.setColor(QColor(qSin((i+1)*1+1.2)*80+80, qSin((i+1)*0.3+0)*80+80, qSin((i+1)*0.3+1.5)*80+80));
+    pen.setColor(QColor(255, 0, 0));
     ui->customPlot->graph()->setPen(pen);
     //ui->customPlot->graph(i)->setLineStyle((QCPGraph::LineStyle)(i+1));
     //customPlot->graph()->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCircle, 5));
     //ui->customPlot->graph(ui->customPlot->graphCount()-1)->addToLegend();
+
+    //customPlot->addGraph(customPlot->xAxis2, customPlot->yAxis2);
+    //customPlot->graph(2)->setPen(QPen(Qt::blue));
+    //customPlot->graph(2)->setName("High frequency sine");
 
     ui->customPlot->addGraph();
     i = ui->customPlot->graphCount()-1;
     ui->customPlot->graph(i)->setData(time, press3);
     ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
     ui->customPlot->graph(i)->setName("Ciśnienie 3");
-    pen.setColor(QColor(qSin((i+1)*1+1.2)*80+80, qSin((i+1)*0.3+0)*80+80, qSin((i+1)*0.3+1.5)*80+80));
+    pen.setColor(QColor(0, 255, 0));
     ui->customPlot->graph()->setPen(pen);
 
-    ui->customPlot->addGraph();
+    /*ui->customPlot->addGraph();
     i = ui->customPlot->graphCount()-1;
     ui->customPlot->graph(i)->setData(time, ramstroke);
     ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
     ui->customPlot->graph(i)->setName("Droga przesuwnika");
-    pen.setColor(QColor(qSin((i+1)*1+1.2)*80+80, qSin((i+1)*0.3+0)*80+80, qSin((i+1)*0.3+1.5)*80+80));
+    pen.setColor(QColor(0, 0, 255));
+    ui->customPlot->graph()->setPen(pen);*/
+
+    ui->customPlot->addGraph(ui->customPlot->xAxis, ui->customPlot->yAxis2);
+    i = ui->customPlot->graphCount()-1;
+    ui->customPlot->graph(i)->setData(time, suppPos);
+    ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
+    ui->customPlot->graph(i)->setName("Pozycja obudowy");
+    pen.setColor(QColor(255, 0, 255));
     ui->customPlot->graph()->setPen(pen);
+
+    ui->customPlot->yAxis2->setRange(suppPos[0]-10, suppPos[suppPos.length()-1]+10);
+
+    /*ui->customPlot->addGraph();
+    i = ui->customPlot->graphCount()-1;
+    ui->customPlot->graph(i)->setData(time, convPos);
+    ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
+    ui->customPlot->graph(i)->setName("Pozycja przenośnika");
+    pen.setColor(QColor(0, 255, 255));
+    ui->customPlot->graph()->setPen(pen);*/
+
+    /*ui->customPlot->addGraph();
+    i = ui->customPlot->graphCount()-1;
+    ui->customPlot->graph(i)->setData(time, coalLine);
+    ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
+    ui->customPlot->graph(i)->setName("Linia węgla");
+    pen.setColor(QColor(255, 255, 0));
+    ui->customPlot->graph()->setPen(pen);*/
 
    /* ui->customPlot->addGraph();
     i = ui->customPlot->graphCount()-1;
