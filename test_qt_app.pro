@@ -18,12 +18,16 @@ SOURCES += main.cpp\
     vshieldreader.cpp \
     shield.cpp \
     facestate.cpp \
-    qcustomplot.cpp
+    qcustomplot.cpp \
+    pressurelimitdialog.cpp \
+    staytimedialog.cpp
 
 HEADERS  += mainwindow.h \
     vshieldreader.h \
     shield.h \
     facestate.h \
-    qcustomplot.h
+    qcustomplot.h \
+    pressurelimitdialog.h \
+    staytimedialog.h
 
 FORMS    += mainwindow.ui

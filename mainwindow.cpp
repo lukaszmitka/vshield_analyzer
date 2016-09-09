@@ -67,12 +67,26 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     qAction_create_db->setStatusTip(*new_db_ststusTip);
     connect(qAction_create_db, &QAction::triggered, this, &MainWindow::newDatabase);
 
+    qAction_pressure_limit = new QAction(tr("Określ limit ciśnienia"));
+    qAction_pressure_limit->setStatusTip("Określa nowe ograniczenia ciśnień dla początku postoju sekcji.");
+    connect(qAction_pressure_limit, &QAction::triggered, this, &MainWindow::dialogGetPressureLimits);
+
+
+    qAction_stay_time = new QAction(tr("Określ czas postoju"));
+    qAction_stay_time->setStatusTip("Określa nowe ograniczenia czasu postoju sekcji.");
+    connect(qAction_stay_time, &QAction::triggered, this, &MainWindow::dialogGetStayTime);
+
+
+
     fileMenu = menuBar()->addMenu(tr("&Plik"));
     fileMenu->addAction(qAction_select_existing_db);
     fileMenu->addAction(qAction_create_db);
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_openVShield);
     fileMenu->addAction(qAction_analyze_vshield);
+    fileMenu->addSeparator();
+    fileMenu->addAction(qAction_pressure_limit);
+    fileMenu->addAction(qAction_stay_time);
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_close);
     connect(fileMenu, SIGNAL(aboutToShow()),this, SLOT(setActiveActions()));
@@ -187,7 +201,7 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
         return;
     }
 
-    QVector<double> time, press2, press3, ramstroke, coalLine, suppPos, convPos;
+    QVector<double> time, press2, press3, avg_press, ramstroke, coalLine, suppPos, convPos;
     double max_val=0, tmp_double;
     int occ=0;
     while(query.next()){
@@ -204,6 +218,7 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
             max_val=tmp_double;
         }
         press3.push_back(tmp_double);
+        avg_press.push_back(0.5 * press2.last() + 0.5 * press3.last());
         ramstroke.push_back(query.value(4).toDouble());
         // division to change integer value to meters
         coalLine.push_back(query.value(5).toDouble()/1000);
@@ -251,6 +266,14 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
     pen.setColor(QColor(0, 255, 0));
     ui->customPlot->graph()->setPen(pen);
 
+    ui->customPlot->addGraph();
+    i = ui->customPlot->graphCount()-1;
+    ui->customPlot->graph(i)->setData(time, avg_press);
+    ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
+    ui->customPlot->graph(i)->setName("Ciśnienie średnie");
+    pen.setColor(QColor(255, 255, 0));
+    ui->customPlot->graph()->setPen(pen);
+
     /*ui->customPlot->addGraph();
     i = ui->customPlot->graphCount()-1;
     ui->customPlot->graph(i)->setData(time, ramstroke);
@@ -264,7 +287,7 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
     ui->customPlot->graph(i)->setData(time, suppPos);
     ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
     ui->customPlot->graph(i)->setName("Pozycja obudowy");
-    pen.setColor(QColor(255, 0, 255));
+    pen.setColor(QColor(0, 0, 255));
     ui->customPlot->graph()->setPen(pen);
 
     ui->customPlot->yAxis2->setRange(suppPos[0]-10, suppPos[suppPos.length()-1]+10);
@@ -327,6 +350,30 @@ void MainWindow::openVShieldFile(){
     } else {
         vshield_selected = false;
     }
+}
+
+void MainWindow::dialogGetPressureLimits(){
+    PressureLimitDialog pld(min_pressure, max_pressure);
+    pld.exec();
+    pld.getPressureLimts(&min_pressure, &max_pressure);
+
+    QString statusBarMessage("Ciśnienie minimalne: ");
+    statusBarMessage.append(QString::number(min_pressure));
+    statusBarMessage.append(", ciśnienie maksymalne: ");
+    statusBarMessage.append(QString::number(max_pressure));
+    statusBar()->showMessage(statusBarMessage,0);
+}
+
+void MainWindow::dialogGetStayTime(){
+    StayTimeDialog stayTimeDlg(min_stay_time, max_stay_time);
+    stayTimeDlg.exec();
+    stayTimeDlg.getStayTime(&min_stay_time, &max_stay_time);
+
+    QString statusBarMessage("Minimalny czas postoju: ");
+    statusBarMessage.append(QString::number(min_stay_time));
+    statusBarMessage.append(", maksymalny czas postoju: ");
+    statusBarMessage.append(QString::number(max_stay_time));
+    statusBar()->showMessage(statusBarMessage,0);
 }
 
 /** Slot for UI button action. Extract data from VShield file and save it to database.
