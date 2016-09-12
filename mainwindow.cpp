@@ -76,7 +76,9 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     qAction_stay_time->setStatusTip("Określa nowe ograniczenia czasu postoju sekcji.");
     connect(qAction_stay_time, &QAction::triggered, this, &MainWindow::dialogGetStayTime);
 
-
+    qAction_press_index = new QAction(tr("Oblicz wskaźnik przyrostu ciśnienia"));
+    qAction_press_index->setStatusTip("Oblicza wskaźnik przyrostu ciśnienia dla określonych sekcji");
+    connect(qAction_press_index, &QAction::triggered, this, &MainWindow::determinePressureIndex);
 
     fileMenu = menuBar()->addMenu(tr("&Plik"));
     fileMenu->addAction(qAction_select_existing_db);
@@ -87,6 +89,7 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_pressure_limit);
     fileMenu->addAction(qAction_stay_time);
+    fileMenu->addAction(qAction_press_index);
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_close);
     connect(fileMenu, SIGNAL(aboutToShow()),this, SLOT(setActiveActions()));
@@ -98,7 +101,7 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     //QCoreApplication.addLibraryPath(".");
 }
 
-bool MainWindow::check_shields_table(std::vector <Shield> current_state){
+bool MainWindow::check_shields_table(std::vector <Shield> current_state, bool init_table){
     QString queryStr("SELECT * FROM shields");
     query.exec(queryStr);
     QString shield_list("Shields found in db: ");
@@ -114,17 +117,23 @@ bool MainWindow::check_shields_table(std::vector <Shield> current_state){
         shield_list.append(" Shield count: ");
         shield_list.append(std::to_string(shield_no).c_str());
         std::cout << shield_list.toLocal8Bit().data() << std::endl;
+        number_of_shields = shield_no;
     } else {
-        std::cout << "Database semms to be just created, insterting new list of shields" << std::endl;
-        for (std::vector <Shield>::iterator cur_st = current_state.begin(); cur_st !=current_state.end(); cur_st++){
-            int id = (*cur_st).get_id();
-            //std::cout << "Insert new shield: " << id << std::endl;
-            QString queryInsert("INSERT INTO shields VALUES (");
-            queryInsert.append(std::to_string(id).c_str());
-            queryInsert.append(");");
-            if(query.exec(queryInsert)){
-                std::cout << "Inserted new shield: " << id << " with query: " << queryInsert.toLocal8Bit().data() << std::endl;
+        if(init_table){
+            shield_no=0;
+            std::cout << "Database seems to be just created, insterting new list of shields" << std::endl;
+            for (std::vector <Shield>::iterator cur_st = current_state.begin(); cur_st !=current_state.end(); cur_st++){
+                int id = (*cur_st).get_id();
+                //std::cout << "Insert new shield: " << id << std::endl;
+                QString queryInsert("INSERT INTO shields VALUES (");
+                queryInsert.append(std::to_string(id).c_str());
+                queryInsert.append(");");
+                if(query.exec(queryInsert)){
+                    std::cout << "Inserted new shield: " << id << " with query: " << queryInsert.toLocal8Bit().data() << std::endl;
+                    shield_no++;
+                }
             }
+            number_of_shields = shield_no;
         }
     }
     return true;
@@ -376,6 +385,20 @@ void MainWindow::dialogGetStayTime(){
     statusBar()->showMessage(statusBarMessage,0);
 }
 
+void MainWindow::determinePressureIndex(){
+    PressureGainIndexDialog gainDialog(number_of_shields);
+    if(gainDialog.exec()){
+        std::cout << "Shields were selected ;)" << std::endl;
+        std::vector<int> selected_shields = gainDialog.getChosenShields();
+
+        for (std::vector <int>::iterator cur_st = selected_shields.begin(); cur_st !=selected_shields.end(); cur_st++){
+            int id = *cur_st;
+            std::cout << "selected shield: " << id << std::endl;
+
+        }
+    }
+}
+
 /** Slot for UI button action. Extract data from VShield file and save it to database.
  * @brief MainWindow::vShieldAnalyze
  */
@@ -388,7 +411,7 @@ void MainWindow::vShieldAnalyze(){
     } else{
         std::cout << "Entries found: " << facestates.size() << std::endl;
         int insert_counter = 0;
-        check_shields_table(facestates.at(0).get_state());
+        check_shields_table(facestates.at(0).get_state(), true);
         for (std::vector<FaceState>::iterator fs = facestates.begin() ; fs != facestates.end(); ++fs){
             //std::cout << (*fs).get_status() << std::endl;
             std::vector <Shield> current_state = (*fs).get_state();
@@ -598,6 +621,8 @@ bool MainWindow::check_db_integrity(QSqlDatabase database){
             //QString status = query.value(0).toString();
             //std::cout << "Application_id: " << status.toLocal8Bit().constData() << std::endl;
             if(query.value(0).toInt()==DATABASE_APP_ID){
+                std::vector <Shield> current_state;
+                check_shields_table(current_state, false);
                 return true;
             }
         }

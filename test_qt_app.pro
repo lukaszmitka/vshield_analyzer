@@ -20,7 +20,9 @@ SOURCES += main.cpp\
     facestate.cpp \
     qcustomplot.cpp \
     pressurelimitdialog.cpp \
-    staytimedialog.cpp
+    staytimedialog.cpp \
+    pressuregainindexdialog.cpp \
+    indexedqcheckbox.cpp
 
 HEADERS  += mainwindow.h \
     vshieldreader.h \
@@ -28,6 +30,8 @@ HEADERS  += mainwindow.h \
     facestate.h \
     qcustomplot.h \
     pressurelimitdialog.h \
-    staytimedialog.h
+    staytimedialog.h \
+    pressuregainindexdialog.h \
+    indexedqcheckbox.h
 
 FORMS    += mainwindow.ui

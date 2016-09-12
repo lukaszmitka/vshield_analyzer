@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include "ui_mainwindow.h"
 #include "vshieldreader.h"
+#include "pressuregainindexdialog.h"
 #include "pressurelimitdialog.h"
 #include "staytimedialog.h"
 #include <QFileDialog>
@@ -11,6 +12,7 @@
 #include <QString>
 #include <QMessageBox>
 #include <QtSql/QtSql>
+#include <iostream>
 
 namespace Ui {
 class MainWindow;
@@ -31,7 +33,7 @@ private:
     bool open_database(QString database_name, bool init);
     bool check_db_integrity(QSqlDatabase database);
     bool create_new_database();
-    bool check_shields_table(std::vector <Shield> current_state);
+    bool check_shields_table(std::vector <Shield> current_state, bool init_table);
     enum shield_params;
     bool populate_shield_list(QSqlDatabase database);
     int desired_min_press = 24; //MPa
@@ -40,15 +42,16 @@ private:
     double max_pressure = 29; //MPa
     int min_stay_time = 0; // minutes
     int max_stay_time = 250; // minutes
+    int number_of_shields = 0;
     QMenu *fileMenu;
     QAction *qAction_close;
     QAction *qAction_select_existing_db;
     QAction *qAction_create_db;
     QAction *qAction_openVShield;
     QAction *qAction_analyze_vshield;
-    //QAction *qAction_config;
     QAction *qAction_stay_time;
     QAction *qAction_pressure_limit;
+    QAction *qAction_press_index;
     QString db_file;
     QSqlDatabase db;
     QSqlQuery query;
@@ -59,6 +62,7 @@ private:
 private slots:
     void dialogGetPressureLimits();
     void dialogGetStayTime();
+    void determinePressureIndex();
     void vShieldAnalyze();
     void openVShieldFile();
     void openDatabase();
