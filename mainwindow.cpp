@@ -363,26 +363,28 @@ void MainWindow::openVShieldFile(){
 
 void MainWindow::dialogGetPressureLimits(){
     PressureLimitDialog pld(min_pressure, max_pressure);
-    pld.exec();
-    pld.getPressureLimts(&min_pressure, &max_pressure);
+    if(pld.exec()){
+        pld.getPressureLimts(&min_pressure, &max_pressure);
 
-    QString statusBarMessage("Ciśnienie minimalne: ");
-    statusBarMessage.append(QString::number(min_pressure));
-    statusBarMessage.append(", ciśnienie maksymalne: ");
-    statusBarMessage.append(QString::number(max_pressure));
-    statusBar()->showMessage(statusBarMessage,0);
+        QString statusBarMessage("Ciśnienie minimalne: ");
+        statusBarMessage.append(QString::number(min_pressure));
+        statusBarMessage.append(", ciśnienie maksymalne: ");
+        statusBarMessage.append(QString::number(max_pressure));
+        statusBar()->showMessage(statusBarMessage,0);
+    }
 }
 
 void MainWindow::dialogGetStayTime(){
     StayTimeDialog stayTimeDlg(min_stay_time, max_stay_time);
-    stayTimeDlg.exec();
-    stayTimeDlg.getStayTime(&min_stay_time, &max_stay_time);
+    if(stayTimeDlg.exec()){
+        stayTimeDlg.getStayTime(&min_stay_time, &max_stay_time);
 
-    QString statusBarMessage("Minimalny czas postoju: ");
-    statusBarMessage.append(QString::number(min_stay_time));
-    statusBarMessage.append(", maksymalny czas postoju: ");
-    statusBarMessage.append(QString::number(max_stay_time));
-    statusBar()->showMessage(statusBarMessage,0);
+        QString statusBarMessage("Minimalny czas postoju: ");
+        statusBarMessage.append(QString::number(min_stay_time));
+        statusBarMessage.append(", maksymalny czas postoju: ");
+        statusBarMessage.append(QString::number(max_stay_time));
+        statusBar()->showMessage(statusBarMessage,0);
+    }
 }
 
 void MainWindow::determinePressureIndex(){
