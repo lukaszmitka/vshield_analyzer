@@ -409,6 +409,10 @@ void MainWindow::determinePressureIndex(){
     }
 }
 
+/** Calculate pressure integrals for selected shield.
+ * @brief MainWindow::calculate_pressure_integral
+ * @param shield_id Id of shield.
+ */
 void MainWindow::calculate_pressure_integral(int shield_id){
     // local variables
     double stay_begin_timestamp; //minutes
