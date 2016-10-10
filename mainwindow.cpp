@@ -361,6 +361,9 @@ void MainWindow::openVShieldFile(){
     }
 }
 
+/** Slot for UI button action. Determine limiting pressures for searching integral.
+ * @brief MainWindow::dialogGetPressureLimits
+ */
 void MainWindow::dialogGetPressureLimits(){
     PressureLimitDialog pld(min_pressure, max_pressure);
     if(pld.exec()){
@@ -374,6 +377,9 @@ void MainWindow::dialogGetPressureLimits(){
     }
 }
 
+/** Slot for UI button action. Determine time limits for searching integral.
+ * @brief MainWindow::dialogGetStayTime
+ */
 void MainWindow::dialogGetStayTime(){
     StayTimeDialog stayTimeDlg(min_stay_time, max_stay_time);
     if(stayTimeDlg.exec()){
@@ -387,17 +393,84 @@ void MainWindow::dialogGetStayTime(){
     }
 }
 
+/** Slot for UI button action. Calculate pressure integral for shields selected in the dialog.
+ * @brief MainWindow::determinePressureIndex
+ */
 void MainWindow::determinePressureIndex(){
     PressureGainIndexDialog gainDialog(number_of_shields);
     if(gainDialog.exec()){
         std::cout << "Shields were selected ;)" << std::endl;
         std::vector<int> selected_shields = gainDialog.getChosenShields();
-
         for (std::vector <int>::iterator cur_st = selected_shields.begin(); cur_st !=selected_shields.end(); cur_st++){
             int id = *cur_st;
             std::cout << "selected shield: " << id << std::endl;
+            calculate_pressure_integral(id);
+        }
+    }
+}
+
+void MainWindow::calculate_pressure_integral(int shield_id){
+    // local variables
+    double stay_begin_timestamp; //minutes
+    double stay_end_timestamp; //minutes
+    double time_diff; // minutes
+    double support_begin_pos; // minutes
+    double support_end_pos; // minutes
+    bool new_stay = true;
+    std::vector<double> avg_pressure; // MPa
+    std::vector<double> time; //minutes
+    QString select_query;
+
+    // Function begining
+    //std::cout << "Calculating gain index" << std::endl;
+    // SQLite query for selecting shield
+    select_query.append("SELECT * FROM states WHERE shield=");
+    select_query.append(QString::number(shield_id));
+    select_query.append(";");
+    //std::cout << "Executing query" << std::endl;
+    query.exec(select_query);
+
+    //std::cout << "Processing query" << std::endl;
+    while(query.next()){
+        if(new_stay){
+            new_stay = false;
+            stay_begin_timestamp = query.value(0).toDouble()/(60*1000);
+            support_begin_pos = (query.value(6).toDouble()/1000);
+            support_end_pos = (query.value(6).toDouble()/1000);
+            time_diff = 0;
+        } else {
+            if(support_end_pos==support_begin_pos)
+            {
+                avg_pressure.push_back((query.value(2).toDouble()+query.value(3).toDouble())/20);
+                time.push_back(time_diff);
+                if(support_begin_pos != (query.value(6).toDouble()/1000)){
+
+                    if(time_diff>max_stay_time){
+                        //std::cout << "Postój od " << stay_begin_timestamp << " do " << stay_end_timestamp << std::endl;
+                        std::cout << "Stay time " << time_diff << std::endl;
+                        if(avg_pressure.at(0) > min_pressure && avg_pressure.at(0) < max_pressure){
+                            std::cout << "Calculate integral" << std::endl;
+                            double integral = 0;
+                            for(int i = 1; i< avg_pressure.size(); i++){
+                                integral = integral + 0.5*(avg_pressure[i]+avg_pressure[i-1])*(60*(time[i]-time[i-1]));
+                            }
+
+                            //std::cout << "Integral " << integral << std::endl;
+                        }
+                    }
+                }
+                support_end_pos = (query.value(6).toDouble()/1000);
+                stay_end_timestamp = query.value(0).toDouble()/(60*1000);
+                time_diff = (stay_end_timestamp - stay_begin_timestamp);
+            } else {
+                //std::cout << "Support pos change" << support_end_pos <<  std::endl;
+                new_stay = true;
+                avg_pressure.clear();
+                time.clear();
+            }
 
         }
+        //std::cout << "Shield number " << query.value(0).toInt() << std::endl;
     }
 }
 

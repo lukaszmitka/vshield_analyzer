@@ -34,6 +34,8 @@ private:
     bool check_db_integrity(QSqlDatabase database);
     bool create_new_database();
     bool check_shields_table(std::vector <Shield> current_state, bool init_table);
+    void calculate_pressure_integral(int shield_id);
+
     enum shield_params;
     bool populate_shield_list(QSqlDatabase database);
     int desired_min_press = 24; //MPa
@@ -43,6 +45,7 @@ private:
     int min_stay_time = 0; // minutes
     int max_stay_time = 250; // minutes
     int number_of_shields = 0;
+
     QMenu *fileMenu;
     QAction *qAction_close;
     QAction *qAction_select_existing_db;
