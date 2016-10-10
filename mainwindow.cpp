@@ -660,6 +660,12 @@ bool MainWindow::open_database(QString database_name, bool init){
         } else {
             std::cout << "Error 3" << std::endl;
         }
+        if(query.exec("CREATE TABLE pressure_index(shield INT, begin_time INT, end_time INT, integral REAL, FOREIGN KEY(begin_time) REFERENCES timestamps(timestamp), FOREIGN KEY(end_time) REFERENCES timestamps(timestamp), FOREIGN KEY(shield) REFERENCES shields(shield_number));")){
+            std::cout << "Table pressure_index was created" << std::endl;
+        } else {
+            std::cout << "Error 4" << std::endl;
+        }
+
     }
     if(check_db_integrity(db)){
         db_selected = true;
