@@ -426,9 +426,18 @@ void MainWindow::calculate_pressure_integral(int shield_id){
     double support_begin_pos; // minutes
     double support_end_pos; // minutes
     bool new_stay = true;
+    long long raw_begin_timestamp;
+    long long raw_end_timestamp;
     std::vector<double> avg_pressure; // MPa
     std::vector<double> time; //minutes
     QString select_query;
+    double integral;
+
+    std::vector<int> pi_shield;
+    std::vector<long long> pi_begin;
+    std::vector<long long> pi_end;
+    std::vector<double> pi_integral;
+
 
     // Function begining
     //std::cout << "Calculating gain index" << std::endl;
@@ -438,12 +447,12 @@ void MainWindow::calculate_pressure_integral(int shield_id){
     select_query.append(";");
     //std::cout << "Executing query" << std::endl;
     query.exec(select_query);
-
     //std::cout << "Processing query" << std::endl;
     while(query.next()){
         if(new_stay){
             new_stay = false;
             stay_begin_timestamp = query.value(0).toDouble()/(60*1000);
+            raw_begin_timestamp = query.value(0).toLongLong();
             support_begin_pos = (query.value(6).toDouble()/1000);
             support_end_pos = (query.value(6).toDouble()/1000);
             time_diff = 0;
@@ -458,18 +467,23 @@ void MainWindow::calculate_pressure_integral(int shield_id){
                         //std::cout << "Postój od " << stay_begin_timestamp << " do " << stay_end_timestamp << std::endl;
                         std::cout << "Stay time " << time_diff << std::endl;
                         if(avg_pressure.at(0) > min_pressure && avg_pressure.at(0) < max_pressure){
-                            std::cout << "Calculate integral" << std::endl;
-                            double integral = 0;
+                            std::cout << "Calculate integral... ";
+                            integral = 0;
                             for(int i = 1; i< avg_pressure.size(); i++){
                                 integral = integral + 0.5*(avg_pressure[i]+avg_pressure[i-1])*(60*(time[i]-time[i-1]));
                             }
+                            std::cout << "   " << integral << std::endl;
 
-                            //std::cout << "Integral " << integral << std::endl;
+                            pi_shield.push_back(shield_id);
+                            pi_begin.push_back(raw_begin_timestamp);
+                            pi_end.push_back(raw_end_timestamp);
+                            pi_integral.push_back(integral);
                         }
                     }
                 }
                 support_end_pos = (query.value(6).toDouble()/1000);
                 stay_end_timestamp = query.value(0).toDouble()/(60*1000);
+                raw_end_timestamp = query.value(0).toLongLong();
                 time_diff = (stay_end_timestamp - stay_begin_timestamp);
             } else {
                 //std::cout << "Support pos change" << support_end_pos <<  std::endl;
@@ -481,6 +495,38 @@ void MainWindow::calculate_pressure_integral(int shield_id){
         }
         //std::cout << "Shield number " << query.value(0).toInt() << std::endl;
     }
+    query.finish();
+    for (int i = 0; i<pi_shield.size(); i++){
+        insertPressureIntegral(pi_shield.at(i), pi_begin.at(i), pi_end.at(i), pi_integral.at(i));
+    }
+}
+
+int MainWindow::insertPressureIntegral(int shield, long long begin_time, long long end_time, double integral){
+    QString queryInsertShield("INSERT INTO pressure_index VALUES (");
+    queryInsertShield.append(std::to_string(shield).c_str());
+    queryInsertShield.append(", ");
+    queryInsertShield.append(std::to_string(begin_time).c_str());
+    queryInsertShield.append(", ");
+    queryInsertShield.append(std::to_string(end_time).c_str());
+    queryInsertShield.append(", ");
+    queryInsertShield.append(std::to_string(integral).c_str());
+    queryInsertShield.append(");");
+    std::cout << "Query: " << queryInsertShield.toStdString().c_str() << std::endl;
+    if(db.isOpen()){
+    pressure_index_query = QSqlQuery(db);
+    if(pressure_index_query.exec(queryInsertShield)){
+        std::cout << "Succesfully inserted pressure integral" << std::endl;
+        return 0;
+    } else {
+        std::cout << "Database error" << std::endl;
+        QSqlError err = pressure_index_query.lastError();
+        std::cout << "Error message: " <<err.text().toStdString().c_str() << std::endl;
+        return -1;
+    }} else {
+        std::cout << "Database NOT OPENED" << std::endl;
+        return -1;
+    }
+    //return 0;
 }
 
 /** Slot for UI button action. Extract data from VShield file and save it to database.
@@ -496,7 +542,9 @@ void MainWindow::vShieldAnalyze(){
         std::cout << "Entries found: " << facestates.size() << std::endl;
         int insert_counter = 0;
         check_shields_table(facestates.at(0).get_state(), true);
+        int insert_begin = 0;
         for (std::vector<FaceState>::iterator fs = facestates.begin() ; fs != facestates.end(); ++fs){
+
             //std::cout << (*fs).get_status() << std::endl;
             std::vector <Shield> current_state = (*fs).get_state();
             QDateTime current_timestamp = (*fs).get_timestamp();
@@ -508,13 +556,16 @@ void MainWindow::vShieldAnalyze(){
             if(query.next()){
                 std::cout << "Timestamp found in database, skip updating" << std::endl;
             } else {
-                std::cout << "Inserting face state " << insert_counter << " of " << facestates.size() << " with timestamp " << timestamp_epoch << std::endl;
+                if(insert_begin == 0){
+                    query.exec("BEGIN");
+                }
+                //std::cout << "Inserting face state " << insert_counter << " of " << facestates.size() << " with timestamp " << timestamp_epoch << std::endl;
                 insert_counter++;
                 QString queryInsertTS( "INSERT INTO timestamps VALUES (" );
                 queryInsertTS.append(std::to_string(timestamp_epoch).c_str());
                 queryInsertTS.append( ");" );
                 if(query.exec(queryInsertTS)){
-                    query.exec("BEGIN");
+
                     for (std::vector <Shield>::iterator cur_st = current_state.begin(); cur_st !=current_state.end(); cur_st++){
                         int id = (*cur_st).get_id();
                         int pressure_1 = (*cur_st).get_pressure_1();
@@ -545,12 +596,21 @@ void MainWindow::vShieldAnalyze(){
                             //std::cout << "Inserted new shield: " << id << " with query: " << queryInsertShield.toLocal8Bit().data() << std::endl;
                         }
                     }
-                    query.exec("COMMIT");
+                    insert_begin++;
+                    if(insert_begin == 20){
+                        query.exec("COMMIT");
+                        insert_begin = 0;
+                    }
                 } else {
                     std::cout << "Unable to add new timestamp int table" << std::endl;
                 }
             }
         }
+        if(insert_begin!=0){
+            query.exec("COMMIT");
+        }
+        std::cout << "DONE ;)" << std::endl;
+        std::cout << "Insterted all facestates" << std::endl;
     }
     vshield_selected = false;
 }

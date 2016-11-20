@@ -35,6 +35,7 @@ private:
     bool create_new_database();
     bool check_shields_table(std::vector <Shield> current_state, bool init_table);
     void calculate_pressure_integral(int shield_id);
+    int insertPressureIntegral(int shield, long long begin_time, long long end_time, double integral);
 
     enum shield_params;
     bool populate_shield_list(QSqlDatabase database);
@@ -58,6 +59,7 @@ private:
     QString db_file;
     QSqlDatabase db;
     QSqlQuery query;
+    QSqlQuery pressure_index_query;
     const static int DATABASE_APP_ID = 700612650;
     VShieldReader *vShieldReader;
     bool db_selected = false;
