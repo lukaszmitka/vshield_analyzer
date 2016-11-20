@@ -350,14 +350,19 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
  */
 void MainWindow::openVShieldFile(){
     QString filename = QFileDialog::getOpenFileName(this, tr("Otwórz plik VShield"),tr(""),tr("Pliki VShield (*.LogVShield10)"));
-    vShieldReader = new VShieldReader(filename.toStdString());
-    if(vShieldReader->get_vshield_file_state()){
-        QString statuBarMessage("Wybrany plik: ");
-        statuBarMessage.append(vShieldReader->get_vshield_file_name().c_str());
-        statusBar()->showMessage(statuBarMessage,0);
-        vshield_selected = true;
-    } else {
+    if(filename.isNull()){
+        std::cout << "No file selected" << std::endl;
         vshield_selected = false;
+    } else{
+        vShieldReader = new VShieldReader(filename.toStdString());
+        if(vShieldReader->get_vshield_file_state()){
+            QString statuBarMessage("Wybrany plik: ");
+            statuBarMessage.append(vShieldReader->get_vshield_file_name().c_str());
+            statusBar()->showMessage(statuBarMessage,0);
+            vshield_selected = true;
+        } else {
+            vshield_selected = false;
+        }
     }
 }
 
