@@ -226,7 +226,7 @@ int VShieldReader::run_main(){
 
     if(vshield_file_ok==true){
         std::vector<unsigned char>  vect_pattern_shield_beg;
-        char pattern_shield_beg[] = {0x66, 0x01, 0x40, 0xf6, 0x01, 0xf6, 0x01}; // beginning of the shield
+        char pattern_shield_beg[] = {(char)0x66, (char)0x01, (char)0x40, (char)0xf6, (char)0x01, (char)0xf6, (char)0x01}; // beginning of the shield
         std::cout << &pattern_shield_beg[0]<<std::endl;
         int patter_shield_beg_length = sizeof(pattern_shield_beg) / sizeof(*pattern_shield_beg);
         for (int i = 0; i < patter_shield_beg_length; i++) {
@@ -331,7 +331,7 @@ std::vector <FaceState> VShieldReader::extract_data(){
 
 std::vector<unsigned char>  VShieldReader::define_shield_header(){
     std::vector<unsigned char>  shield_head;
-    char c_shield_head[] = {0x66, 0x01, 0x40, 0xf6, 0x01, 0xf6, 0x01}; // beginning of the shield
+    char c_shield_head[] = {(char)0x66, (char)0x01, (char)0x40, (char)0xf6, (char)0x01, (char)0xf6, (char)0x01}; // beginning of the shield
     //std::cout << &c_shield_head[0]<<std::endl;
     int head_length = sizeof(c_shield_head) / sizeof(*c_shield_head);
     for (int i = 0; i < head_length; i++) {

@@ -4,11 +4,15 @@
 #
 #-------------------------------------------------
 
+#INCLUDEPATH += /usr/include/x86_64-linux-gnu/qt5/QtWidgets
+
+QMAKE_CXXFLAGS += -std=c++11
+
 QT       += core gui
 QT      += sql
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
-TARGET = test_qt_app
+TARGET = analiza_vshield
 TEMPLATE = app
 
 QTPLUGIN += QSQLITE

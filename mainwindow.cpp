@@ -35,19 +35,22 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     // qAction_one->setStatusTip("Nowy plik");
     //connect(qAction_one, &QAction::triggered, this,  &MainWindow::nowy_plik);
 
-    qAction_openVShield = new QAction(tr("&Otwórz plik VShield"));
+    qAction_openVShield = new QAction(tr("&Otwórz plik VShield"), this);
+    //qAction_openVShield = new QAction("Otwórz plik VShield");
     qAction_openVShield->setStatusTip("Otwórz istniejący plik");
-    connect(qAction_openVShield, &QAction::triggered, this, &MainWindow::openVShieldFile);
+    connect(qAction_openVShield, SIGNAL(triggered()), this, SLOT(openVShieldFile()));
 
-    qAction_analyze_vshield = new QAction(tr("&Analizuj plik"));
+    //connect(myAction,SIGNAL(triggered()), this, SLOT(myFileFunction()));
+
+    qAction_analyze_vshield = new QAction(tr("&Analizuj plik"), this);
     qAction_analyze_vshield->setStatusTip("Tymczasowa funkcja do analizy VShield");
-    connect(qAction_analyze_vshield, &QAction::triggered, this, &MainWindow::vShieldAnalyze);
+    connect(qAction_analyze_vshield, SIGNAL(triggered()), this, SLOT(vShieldAnalyze()));
 
-    qAction_close = new QAction(tr("&Zamknij"));
+    qAction_close = new QAction(tr("&Zamknij"), this);
     qAction_close->setStatusTip("Zakończ program");
-    connect(qAction_close, &QAction::triggered, this, &MainWindow::close);
+    connect(qAction_close, SIGNAL(triggered()), this, SLOT(close()));
 
-    qAction_select_existing_db = new QAction(tr("&Otwórz bazę danych"));
+    qAction_select_existing_db = new QAction(tr("&Otwórz bazę danych"), this);
     QString *sel_db_statusTip = new QString;
     sel_db_statusTip->append("Otwiera istniejącą bazę danych");
     if(!db_file.isEmpty()){
@@ -55,9 +58,9 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
         sel_db_statusTip->append(db_file);
     }
     qAction_select_existing_db->setStatusTip(*sel_db_statusTip);
-    connect(qAction_select_existing_db, &QAction::triggered, this, &MainWindow::openDatabase);
+    connect(qAction_select_existing_db, SIGNAL(triggered()), this, SLOT(openDatabase()));
 
-    qAction_create_db = new QAction(tr("&Stwórz bazę danych"));
+    qAction_create_db = new QAction(tr("&Stwórz bazę danych"), this);
     QString *new_db_ststusTip = new QString;
     new_db_ststusTip->append("Tworzy nową bazę danych");
     if(!db_file.isEmpty()){
@@ -65,20 +68,28 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
         new_db_ststusTip->append(db_file);
     }
     qAction_create_db->setStatusTip(*new_db_ststusTip);
-    connect(qAction_create_db, &QAction::triggered, this, &MainWindow::newDatabase);
+    connect(qAction_create_db, SIGNAL(triggered()), this, SLOT(newDatabase()));
 
-    qAction_pressure_limit = new QAction(tr("Określ limit ciśnienia"));
+    qAction_pressure_limit = new QAction(tr("Określ limit ciśnienia"), this);
     qAction_pressure_limit->setStatusTip("Określa nowe ograniczenia ciśnień dla początku postoju sekcji.");
-    connect(qAction_pressure_limit, &QAction::triggered, this, &MainWindow::dialogGetPressureLimits);
+    connect(qAction_pressure_limit, SIGNAL(triggered()), this, SLOT(dialogGetPressureLimits()));
 
 
-    qAction_stay_time = new QAction(tr("Określ czas postoju"));
+    qAction_stay_time = new QAction(tr("Określ czas postoju"), this);
     qAction_stay_time->setStatusTip("Określa nowe ograniczenia czasu postoju sekcji.");
-    connect(qAction_stay_time, &QAction::triggered, this, &MainWindow::dialogGetStayTime);
+    connect(qAction_stay_time, SIGNAL(triggered()), this, SLOT(dialogGetStayTime()));
 
-    qAction_press_index = new QAction(tr("Oblicz wskaźnik przyrostu ciśnienia"));
+    qAction_press_index = new QAction(tr("Oblicz wskaźnik przyrostu ciśnienia"), this);
     qAction_press_index->setStatusTip("Oblicza wskaźnik przyrostu ciśnienia dla określonych sekcji");
-    connect(qAction_press_index, &QAction::triggered, this, &MainWindow::determinePressureIndex);
+    connect(qAction_press_index, SIGNAL(triggered()), this, SLOT(determinePressureIndex()));
+
+    qAction_export = new QAction(tr("Eksport do pliku csv"), this);
+    qAction_export->setStatusTip("Eksportuje obliczone wskaźniki ciśnienia do pliku .csv (Do obróbki w Excelu lub Matlabie");
+    connect(qAction_export, SIGNAL(triggered()), this, SLOT(export_to_csv()));
+
+    qAction_clear_pressure_table = new QAction(tr("Wyczyść tabelę wskaźników ciśnienia"), this);
+    qAction_clear_pressure_table->setStatusTip("Usuwa wpisy z tabeli wskaźników ciśnienia");
+    connect(qAction_clear_pressure_table, SIGNAL(triggered()), this, SLOT(clear_index_table()));
 
     fileMenu = menuBar()->addMenu(tr("&Plik"));
     fileMenu->addAction(qAction_select_existing_db);
@@ -91,6 +102,9 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     fileMenu->addAction(qAction_stay_time);
     fileMenu->addAction(qAction_press_index);
     fileMenu->addSeparator();
+    fileMenu->addAction(qAction_export);
+    fileMenu->addAction(qAction_clear_pressure_table);
+    fileMenu->addSeparator();
     fileMenu->addAction(qAction_close);
     connect(fileMenu, SIGNAL(aboutToShow()),this, SLOT(setActiveActions()));
 
@@ -99,6 +113,107 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
 
     vShieldReader = new VShieldReader();
     //QCoreApplication.addLibraryPath(".");
+}
+
+void MainWindow::export_to_csv(){
+    // SQLite query for selecting shield
+    QString filename = QFileDialog::getSaveFileName(this, tr("Wybierz plik do zapisu"),tr(""),tr("Pliki csv (*.csv)"));
+    if(filename.isNull()){
+        std::cout << "No file selected" << std::endl;
+        QString statuBarMessage("Operacja anulowana przez użytkownika");
+        statusBar()->showMessage(statuBarMessage,0);
+    } else{
+        QString statuBarMessage("Wybrany plik: ");
+        statuBarMessage.append(filename);
+        statusBar()->showMessage(statuBarMessage,0);
+        QFile csv_file(filename);
+        csv_file.open(QIODevice::WriteOnly);
+        QTextStream csv_out(&csv_file);   // we will serialize the data into the file
+        QString select_query;
+        select_query.append("SELECT * FROM pressure_index;");
+        //std::cout << "Executing query" << std::endl;
+        query.exec(select_query);
+        int shield;
+        long long begin_time;
+        long long end_time;
+        float pressure_integral;
+        int stoppage_entries;
+        QByteArray qBA;
+        std::vector<double> pressure_history;
+        while(query.next()){
+                shield = query.value(0).toInt();
+                begin_time = query.value(1).toLongLong();
+                end_time = query.value(2).toLongLong();
+                pressure_integral = query.value(3).toFloat();
+                stoppage_entries = query.value(4).toInt();
+                qBA = query.value(5).toByteArray();
+
+                double tmp;
+                std::cout << "Entries = " << stoppage_entries << ", entry size = " << sizeof(tmp) << std::endl;
+
+                int byte_array_size = qBA.size();
+
+                if (byte_array_size/sizeof(tmp) == stoppage_entries)
+                {
+                    std::cout << "Read BLOB" <<std::endl;
+                    for (int i=0; i< stoppage_entries; i++){
+                        tmp = *reinterpret_cast<const double*>(qBA.data());
+                        //std::cout << "Extracted data: " << tmp << std::endl;
+                        qBA.remove(0,8);
+                        pressure_history.push_back(tmp);
+                    }
+
+                    QDateTime dateTime;
+
+                    QString line;
+                    line.append(std::to_string(shield).c_str());
+                    line.append(", ");
+                    dateTime.setMSecsSinceEpoch(begin_time);
+                    line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
+                    //line.append(std::to_string(begin_time).c_str());
+
+                    line.append(", ");
+                    //line.append(std::to_string(end_time).c_str());
+                    dateTime.setMSecsSinceEpoch(end_time);
+                    line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
+                    line.append(", ");
+                    line.append(std::to_string(pressure_integral).c_str());
+                    for (int i =0; i< pressure_history.size();i++){
+                        line.append(", ");
+                        line.append(std::to_string(pressure_history[i]).c_str());
+                    }
+                    csv_out << line << endl;
+
+                } else
+                {
+                    std::cout << "Wrong BLOB size." <<std::endl;
+                    csv_out << "Wrong BLOB size." << endl;
+                }
+
+                /*std::cout << "BLOB data: ";
+                for (int i =0; i< pressure_history.size();i++){
+                    std::cout << pressure_history[i] << ", ";
+                }
+                std::cout <<  std::endl;*/
+
+
+        }
+    }
+}
+
+void MainWindow::clear_index_table(){
+    QString clear_query;
+    clear_query.append("DELETE FROM pressure_index;");
+    //std::cout << "Executing query" << std::endl;
+    if(query.exec(clear_query)){
+        QString statuBarMessage("Tabela wskaźników ciśnienia została wyczyszczona");
+        statusBar()->showMessage(statuBarMessage,0);
+    }
+    else {
+        std::cout << query.lastError().text().toStdString() << std::endl;
+        QString statuBarMessage("Wystąpił błąd podczas czyszcenia tabeli wskaźników ciśnienia");
+        statusBar()->showMessage(statuBarMessage,0);
+    }
 }
 
 bool MainWindow::check_shields_table(std::vector <Shield> current_state, bool init_table){
@@ -236,7 +351,7 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
         occ++;
     }
     std::cout << "Occurences: " << occ << std::endl;
-    std::cout << "Time length: " << time.length() << std::endl;
+    std::cout << "Time length: " << time.size() << std::endl;
     // zoom and interaction disabled, adjust plot axis at every data reload
     /*
      if(ui->customPlot->graphCount()==0){
@@ -252,7 +367,8 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
 
     QPen pen;
     int i;
-    ui->customPlot->addGraph();
+
+    /*ui->customPlot->addGraph();
     i = ui->customPlot->graphCount()-1;
     ui->customPlot->graph(i)->setData(time, press2);
     ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
@@ -274,13 +390,14 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
     ui->customPlot->graph(i)->setName("Ciśnienie 3");
     pen.setColor(QColor(0, 255, 0));
     ui->customPlot->graph()->setPen(pen);
+    */
 
     ui->customPlot->addGraph();
     i = ui->customPlot->graphCount()-1;
     ui->customPlot->graph(i)->setData(time, avg_press);
     ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
     ui->customPlot->graph(i)->setName("Ciśnienie średnie");
-    pen.setColor(QColor(255, 255, 0));
+    pen.setColor(QColor(0, 255, 0));
     ui->customPlot->graph()->setPen(pen);
 
     /*ui->customPlot->addGraph();
@@ -299,7 +416,7 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
     pen.setColor(QColor(0, 0, 255));
     ui->customPlot->graph()->setPen(pen);
 
-    ui->customPlot->yAxis2->setRange(suppPos[0]-10, suppPos[suppPos.length()-1]+10);
+    ui->customPlot->yAxis2->setRange(suppPos[0]-10, suppPos[suppPos.size()-1]+10);
 
     /*ui->customPlot->addGraph();
     i = ui->customPlot->graphCount()-1;
@@ -351,10 +468,17 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
 void MainWindow::openVShieldFile(){
     QString filename = QFileDialog::getOpenFileName(this, tr("Otwórz plik VShield"),tr(""),tr("Pliki VShield (*.LogVShield10)"));
     if(filename.isNull()){
+        QString statuBarMessage("D1: No file selected");
+        statusBar()->showMessage(statuBarMessage,0);
         std::cout << "No file selected" << std::endl;
         vshield_selected = false;
     } else{
+        QString statuBarMessage("D2: Wybrany plik: ");
+        statuBarMessage.append(filename);
+        statusBar()->showMessage(statuBarMessage,0);
         vShieldReader = new VShieldReader(filename.toStdString());
+        QString statuBarMessage2("D3: VShieldReader created ");
+        statusBar()->showMessage(statuBarMessage2,0);
         if(vShieldReader->get_vshield_file_state()){
             QString statuBarMessage("Wybrany plik: ");
             statuBarMessage.append(vShieldReader->get_vshield_file_name().c_str());
@@ -409,16 +533,23 @@ void MainWindow::determinePressureIndex(){
         for (std::vector <int>::iterator cur_st = selected_shields.begin(); cur_st !=selected_shields.end(); cur_st++){
             int id = *cur_st;
             std::cout << "selected shield: " << id << std::endl;
-            calculate_pressure_integral(id);
+            int found_integrals = calculate_pressure_integral(id);
+            QString statusBarMessage("Obliczono ");
+            statusBarMessage.append(QString::number(found_integrals));
+            statusBarMessage.append(" wskaźników ciśnienia dla obudowy ");
+            statusBarMessage.append(QString::number(id));
+            statusBar()->showMessage(statusBarMessage,0);
         }
     }
+
 }
 
 /** Calculate pressure integrals for selected shield.
  * @brief MainWindow::calculate_pressure_integral
  * @param shield_id Id of shield.
+ * @return Number of integrals found
  */
-void MainWindow::calculate_pressure_integral(int shield_id){
+int  MainWindow::calculate_pressure_integral(int shield_id){
     // local variables
     double stay_begin_timestamp; //minutes
     double stay_end_timestamp; //minutes
@@ -437,6 +568,7 @@ void MainWindow::calculate_pressure_integral(int shield_id){
     std::vector<long long> pi_begin;
     std::vector<long long> pi_end;
     std::vector<double> pi_integral;
+    std::vector<std::vector<double>> pi_pressure_history;
 
 
     // Function begining
@@ -478,6 +610,7 @@ void MainWindow::calculate_pressure_integral(int shield_id){
                             pi_begin.push_back(raw_begin_timestamp);
                             pi_end.push_back(raw_end_timestamp);
                             pi_integral.push_back(integral);
+                            pi_pressure_history.push_back(avg_pressure);
                         }
                     }
                 }
@@ -497,11 +630,12 @@ void MainWindow::calculate_pressure_integral(int shield_id){
     }
     query.finish();
     for (int i = 0; i<pi_shield.size(); i++){
-        insertPressureIntegral(pi_shield.at(i), pi_begin.at(i), pi_end.at(i), pi_integral.at(i));
+        insertPressureIntegral(pi_shield.at(i), pi_begin.at(i), pi_end.at(i), pi_integral.at(i), pi_pressure_history.at(i));
     }
+    return (int)pi_shield.size();
 }
 
-int MainWindow::insertPressureIntegral(int shield, long long begin_time, long long end_time, double integral){
+int MainWindow::insertPressureIntegral(int shield, long long begin_time, long long end_time, double integral, std::vector<double> pressure_history){
     QString queryInsertShield("INSERT INTO pressure_index VALUES (");
     queryInsertShield.append(std::to_string(shield).c_str());
     queryInsertShield.append(", ");
@@ -510,12 +644,33 @@ int MainWindow::insertPressureIntegral(int shield, long long begin_time, long lo
     queryInsertShield.append(std::to_string(end_time).c_str());
     queryInsertShield.append(", ");
     queryInsertShield.append(std::to_string(integral).c_str());
+    queryInsertShield.append(", ");
+    queryInsertShield.append(":stoppage_duration");
+    queryInsertShield.append(", ");
+    queryInsertShield.append(":press_hist");
+
     queryInsertShield.append(");");
-    std::cout << "Query: " << queryInsertShield.toStdString().c_str() << std::endl;
+
+    QByteArray inByteArray;
+    uint64_t stoppage_entries = pressure_history.size();
+    int entry_size = sizeof(pressure_history[0]);
+    for (uint64_t i=0; i<stoppage_entries; i++){
+        inByteArray.append(reinterpret_cast<const char*>(&pressure_history[i]), entry_size);
+    }
+
+    //std::cout << "Query: " << queryInsertShield.toStdString().c_str() << std::endl;
     if(db.isOpen()){
     pressure_index_query = QSqlQuery(db);
-    if(pressure_index_query.exec(queryInsertShield)){
+    pressure_index_query.prepare(queryInsertShield);
+    pressure_index_query.bindValue( ":stoppage_duration", (unsigned long long)stoppage_entries);
+    pressure_index_query.bindValue( ":press_hist", inByteArray);
+    std::cout << "Query to execute: " << queryInsertShield.toLocal8Bit().data() << std::endl;
+    //std::cout << "pressure_history[0] = " << pressure_history[0] << std::endl;
+
+    //if(pressure_index_query.exec(queryInsertShield)){
+    if(pressure_index_query.exec()){
         std::cout << "Succesfully inserted pressure integral" << std::endl;
+        std::cout << pressure_index_query.executedQuery().toLocal8Bit().data() << std::endl;
         return 0;
     } else {
         std::cout << "Database error" << std::endl;
@@ -725,12 +880,11 @@ bool MainWindow::open_database(QString database_name, bool init){
         } else {
             std::cout << "Error 3" << std::endl;
         }
-        if(query.exec("CREATE TABLE pressure_index(shield INT, begin_time INT, end_time INT, integral REAL, FOREIGN KEY(begin_time) REFERENCES timestamps(timestamp), FOREIGN KEY(end_time) REFERENCES timestamps(timestamp), FOREIGN KEY(shield) REFERENCES shields(shield_number));")){
+        if(query.exec("CREATE TABLE pressure_index(shield INT, begin_time INT, end_time INT, integral REAL, stoppage_duration INT, press_hist BLOB, FOREIGN KEY(begin_time) REFERENCES timestamps(timestamp), FOREIGN KEY(end_time) REFERENCES timestamps(timestamp), FOREIGN KEY(shield) REFERENCES shields(shield_number));")){
             std::cout << "Table pressure_index was created" << std::endl;
         } else {
             std::cout << "Error 4" << std::endl;
         }
-
     }
     if(check_db_integrity(db)){
         db_selected = true;
@@ -797,14 +951,14 @@ void MainWindow::setActiveActions(){
     }
 }
 
-enum MainWindow::shield_params{
+/*enum MainWindow::shield_params{
     press_1 = 1,
     press_2 = 2,
     ramstrk = 3,
     coalLn = 4,
     supp_Pos = 5,
     conv_Pos = 6
-};
+};*/
 
 MainWindow::~MainWindow()
 {

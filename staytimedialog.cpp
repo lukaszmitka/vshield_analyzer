@@ -23,9 +23,9 @@ StayTimeDialog::StayTimeDialog(int time_min, int time_max)
     max_time_layout->addWidget(maxStayTimeSpinBox);
 
     QPushButton *cancelButton = new QPushButton(tr("Anuluj"));
-    connect(cancelButton, &QAbstractButton::clicked, this, &QWidget::close);
+    connect(cancelButton, SIGNAL(&QAbstractButton::clicked), this, SLOT(&QWidget::close));
     QPushButton *okButton = new QPushButton(tr("OK"));
-    connect(okButton, &QAbstractButton::clicked, this, &QDialog::accept);
+    connect(okButton, SIGNAL(&QAbstractButton::clicked), this, SLOT(&QDialog::accept));
     QHBoxLayout *buttons_layout = new QHBoxLayout;
     buttons_layout->addWidget(okButton);
     buttons_layout->addSpacing(20);

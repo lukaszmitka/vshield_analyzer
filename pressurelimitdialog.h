@@ -3,7 +3,10 @@
 
 #include <QDoubleSpinBox>
 #include <QVBoxLayout>
-#include <QtWidgets>
+#include <QDialog>
+#include <QLabel>
+#include <QPushButton>
+#include <QAbstractButton>
 
 class PressureLimitDialog : public QDialog
 {

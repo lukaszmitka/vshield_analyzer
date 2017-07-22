@@ -4,9 +4,12 @@
 #include <QDoubleSpinBox>
 #include <QVBoxLayout>
 #include <QCheckBox>
-#include <QtWidgets>
+#include <QDialog>
 #include <vector>
 #include <iostream>
+#include <QLabel>
+#include <QPushButton>
+#include <QAbstractButton>
 
 class PressureGainIndexDialog : public QDialog
 {
