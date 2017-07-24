@@ -23,9 +23,9 @@ PressureLimitDialog::PressureLimitDialog(double limit_min, double limit_max)
     max_press_layout->addWidget(press_max);
 
     QPushButton *cancelButton = new QPushButton(tr("Anuluj"));
-    connect(cancelButton, SIGNAL(&QAbstractButton::clicked), this, SLOT(&QWidget::close));
+    connect(cancelButton, SIGNAL(clicked()), this, SLOT(close()));
     QPushButton *okButton = new QPushButton(tr("OK"));
-    connect(okButton, SIGNAL(&QAbstractButton::clicked), this, SLOT(&QDialog::accept));
+    connect(okButton, SIGNAL(clicked()), this, SLOT(accept()));
     QHBoxLayout *buttons_layout = new QHBoxLayout;
     buttons_layout->addWidget(okButton);
     buttons_layout->addSpacing(20);

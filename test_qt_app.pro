@@ -8,9 +8,10 @@
 
 QMAKE_CXXFLAGS += -std=c++11
 
+
 QT       += core gui
-QT      += sql
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
+
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport   sql
 
 TARGET = analiza_vshield
 TEMPLATE = app
@@ -26,7 +27,9 @@ SOURCES += main.cpp\
     pressurelimitdialog.cpp \
     staytimedialog.cpp \
     pressuregainindexdialog.cpp \
-    indexedqcheckbox.cpp
+    indexedqcheckbox.cpp \
+    vshieldanalyzerworker.cpp \
+    vshieldprogressdialog.cpp
 
 HEADERS  += mainwindow.h \
     vshieldreader.h \
@@ -36,6 +39,8 @@ HEADERS  += mainwindow.h \
     pressurelimitdialog.h \
     staytimedialog.h \
     pressuregainindexdialog.h \
-    indexedqcheckbox.h
+    indexedqcheckbox.h \
+    vshieldanalyzerworker.h \
+    vshieldprogressdialog.h
 
 FORMS    += mainwindow.ui

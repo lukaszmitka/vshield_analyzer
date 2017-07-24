@@ -2,6 +2,10 @@
 
 VShieldReader::VShieldReader()
 {
+    vshield_file_ok = false;
+}
+
+VShieldReader::~VShieldReader(){
 
 }
 
@@ -308,7 +312,7 @@ bool VShieldReader::init_read(QDate date, int *position, FaceState *faceState){
     return false;
 }
 
-std::vector <FaceState> VShieldReader::extract_data(){
+std::vector<FaceState> VShieldReader::extract_data(){
     //std::cout << "Extracting data from vshield" << std::endl;
     std::vector <FaceState> facestates;
     pos_in_file = metadata_end;
@@ -320,8 +324,12 @@ std::vector <FaceState> VShieldReader::extract_data(){
         init_read(ts.date(), &pos_in_file, &fs);
         facestates.push_back(fs);
         std::cout << "Read initialization completed" << std::endl;
+        double progress;
         while(go_to_next_timestamp(&fs, &pos_in_file)){
             facestates.push_back(fs);
+            //std::cout << "File length: " << file_length << ", position: " << pos_in_file << ", progress: " << progress << std::endl;
+            progress = ((double)pos_in_file)/((double)file_length);
+            emit fileProgress(progress);
         }
     }
     vshield_file.close();

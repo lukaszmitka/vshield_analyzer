@@ -18,6 +18,9 @@ public:
     PressureGainIndexDialog(int shield_count);
     std::vector <int> getChosenShields();
     QVBoxLayout *mainLayout;
+public slots:
+    void check_all();
+    void uncheck_all();
 };
 
 #endif // PRESSUREGAININDEXDIALOG_H

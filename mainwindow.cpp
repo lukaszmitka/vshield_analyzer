@@ -8,6 +8,8 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     setWindowTitle(tr("VShield analyzer"));
     setMinimumSize(300, 300);
     resize(1000, 800);
+    // TODO change size
+    //resize(1000, 800);
     //showFullScreen();
 
     // give the axes some labels:
@@ -39,6 +41,10 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     //qAction_openVShield = new QAction("Otwórz plik VShield");
     qAction_openVShield->setStatusTip("Otwórz istniejący plik");
     connect(qAction_openVShield, SIGNAL(triggered()), this, SLOT(openVShieldFile()));
+
+    qAction_openVShieldFolder = new QAction(tr("Otwórz folder VShield"), this);
+    qAction_openVShieldFolder->setStatusTip("Otwórz folder zawierający pliki VShield");
+    connect(qAction_openVShieldFolder, SIGNAL(triggered()), this, SLOT(openVShieldFolder()));
 
     //connect(myAction,SIGNAL(triggered()), this, SLOT(myFileFunction()));
 
@@ -91,11 +97,14 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     qAction_clear_pressure_table->setStatusTip("Usuwa wpisy z tabeli wskaźników ciśnienia");
     connect(qAction_clear_pressure_table, SIGNAL(triggered()), this, SLOT(clear_index_table()));
 
+
+
     fileMenu = menuBar()->addMenu(tr("&Plik"));
     fileMenu->addAction(qAction_select_existing_db);
     fileMenu->addAction(qAction_create_db);
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_openVShield);
+    fileMenu->addAction(qAction_openVShieldFolder);
     fileMenu->addAction(qAction_analyze_vshield);
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_pressure_limit);
@@ -141,56 +150,59 @@ void MainWindow::export_to_csv(){
         QByteArray qBA;
         std::vector<double> pressure_history;
         while(query.next()){
-                shield = query.value(0).toInt();
-                begin_time = query.value(1).toLongLong();
-                end_time = query.value(2).toLongLong();
-                pressure_integral = query.value(3).toFloat();
-                stoppage_entries = query.value(4).toInt();
-                qBA = query.value(5).toByteArray();
+            shield = query.value(0).toInt();
+            begin_time = query.value(1).toLongLong();
+            end_time = query.value(2).toLongLong();
+            pressure_integral = query.value(3).toFloat();
+            stoppage_entries = query.value(4).toInt();
+            qBA = query.value(5).toByteArray();
 
-                double tmp;
-                std::cout << "Entries = " << stoppage_entries << ", entry size = " << sizeof(tmp) << std::endl;
+            double tmp;
+            std::cout << "Entries = " << stoppage_entries << ", entry size = " << sizeof(tmp) << std::endl;
+            int byte_array_size = qBA.size();
+            //std::cout <<"BLOB size: " << byte_array_size;
 
-                int byte_array_size = qBA.size();
-
-                if (byte_array_size/sizeof(tmp) == stoppage_entries)
-                {
-                    std::cout << "Read BLOB" <<std::endl;
-                    for (int i=0; i< stoppage_entries; i++){
-                        tmp = *reinterpret_cast<const double*>(qBA.data());
-                        //std::cout << "Extracted data: " << tmp << std::endl;
-                        qBA.remove(0,8);
-                        pressure_history.push_back(tmp);
-                    }
-
-                    QDateTime dateTime;
-
-                    QString line;
-                    line.append(std::to_string(shield).c_str());
-                    line.append(", ");
-                    dateTime.setMSecsSinceEpoch(begin_time);
-                    line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
-                    //line.append(std::to_string(begin_time).c_str());
-
-                    line.append(", ");
-                    //line.append(std::to_string(end_time).c_str());
-                    dateTime.setMSecsSinceEpoch(end_time);
-                    line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
-                    line.append(", ");
-                    line.append(std::to_string(pressure_integral).c_str());
-                    for (int i =0; i< pressure_history.size();i++){
-                        line.append(", ");
-                        line.append(std::to_string(pressure_history[i]).c_str());
-                    }
-                    csv_out << line << endl;
-
-                } else
-                {
-                    std::cout << "Wrong BLOB size." <<std::endl;
-                    csv_out << "Wrong BLOB size." << endl;
+            if (byte_array_size/sizeof(tmp) == stoppage_entries)
+            {
+                std::cout << "Read BLOB" <<std::endl;
+                for (int i=0; i< stoppage_entries; i++){
+                    tmp = *reinterpret_cast<const double*>(qBA.data());
+                    //std::cout << "Extracted data: " << tmp << std::endl;
+                    qBA.remove(0,8);
+                    pressure_history.push_back(tmp);
                 }
 
-                /*std::cout << "BLOB data: ";
+                QDateTime dateTime;
+                QString line;
+                line.append(std::to_string(shield).c_str());
+                line.append(", ");
+                dateTime.setMSecsSinceEpoch(begin_time);
+                line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
+                //line.append(std::to_string(begin_time).c_str());
+
+                line.append(", ");
+                //line.append(std::to_string(end_time).c_str());
+                dateTime.setMSecsSinceEpoch(end_time);
+                line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
+                line.append(", ");
+                line.append(std::to_string(pressure_integral).c_str());
+                for (unsigned int i =0; i< pressure_history.size();i++){
+                    line.append(", ");
+                    std::string pressure_string = std::to_string(pressure_history[i]);
+                    std::replace( pressure_string.begin(), pressure_string.end(), ',', '.'); // replace all 'x' to 'y'
+                    line.append(pressure_string.c_str());
+                }
+                csv_out << line << endl;
+                line.clear();
+                pressure_history.clear();
+
+            } else
+            {
+                std::cout << "Wrong BLOB size." <<std::endl;
+                csv_out << "Wrong BLOB size." << endl;
+            }
+
+            /*std::cout << "BLOB data: ";
                 for (int i =0; i< pressure_history.size();i++){
                     std::cout << pressure_history[i] << ", ";
                 }
@@ -434,7 +446,7 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
     pen.setColor(QColor(255, 255, 0));
     ui->customPlot->graph()->setPen(pen);*/
 
-   /* ui->customPlot->addGraph();
+    /* ui->customPlot->addGraph();
     i = ui->customPlot->graphCount()-1;
     ui->customPlot->graph(i)->setData(time, coalLine);
     ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
@@ -472,7 +484,7 @@ void MainWindow::openVShieldFile(){
         statusBar()->showMessage(statuBarMessage,0);
         std::cout << "No file selected" << std::endl;
         vshield_selected = false;
-    } else{
+    } else {
         QString statuBarMessage("D2: Wybrany plik: ");
         statuBarMessage.append(filename);
         statusBar()->showMessage(statuBarMessage,0);
@@ -488,6 +500,44 @@ void MainWindow::openVShieldFile(){
             vshield_selected = false;
         }
     }
+}
+
+/** Slot for UI button action. Select folder and check files inside if they are compatible with VShield standard.
+ * @brief MainWindow::openVShieldFolder
+ */
+void MainWindow::openVShieldFolder(){
+    const QString homeFolder = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    QString foldername = QFileDialog::getExistingDirectory(this, tr("Wybierz folder"), homeFolder,QFileDialog::ShowDirsOnly
+                                                           | QFileDialog::DontResolveSymlinks);
+    if(!foldername.isNull()){
+        QDir vshDir(foldername);
+        QStringList filters;
+        filters << "*.LogVShield10";
+        vshDir.setNameFilters(filters);
+        QStringList files = vshDir.entryList();
+        if(!files.isEmpty()){
+            VShieldProgressDialog progressDialog(foldername, files, query);
+            if(progressDialog.exec()){
+                progressDialog.getNumberOfShields(&number_of_shields);
+                //stayTimeDlg.getStayTime(&min_stay_time, &max_stay_time);
+                /*QString statusBarMessage("Minimalny czas postoju: ");
+                statusBarMessage.append(QString::number(min_stay_time));
+                statusBarMessage.append(", maksymalny czas postoju: ");
+                statusBarMessage.append(QString::number(max_stay_time));
+                statusBar()->showMessage(statusBarMessage,0);*/
+            }
+        } else {
+            QString statuBarMessage("No VShield files in selected directory");
+            statusBar()->showMessage(statuBarMessage,0);
+            std::cout << "No VShield files in selected directory" << std::endl;
+        }
+    } else {
+        QString statuBarMessage("No directory selected");
+        statusBar()->showMessage(statuBarMessage,0);
+        std::cout << "No directory selected" << std::endl;
+    }
+    vshield_selected = false;
+
 }
 
 /** Slot for UI button action. Determine limiting pressures for searching integral.
@@ -643,7 +693,9 @@ int MainWindow::insertPressureIntegral(int shield, long long begin_time, long lo
     queryInsertShield.append(", ");
     queryInsertShield.append(std::to_string(end_time).c_str());
     queryInsertShield.append(", ");
-    queryInsertShield.append(std::to_string(integral).c_str());
+    std::string integral_string = std::to_string(integral);
+    std::replace( integral_string.begin(), integral_string.end(), ',', '.'); // replace all 'x' to 'y'
+    queryInsertShield.append(integral_string.c_str());
     queryInsertShield.append(", ");
     queryInsertShield.append(":stoppage_duration");
     queryInsertShield.append(", ");
@@ -660,24 +712,24 @@ int MainWindow::insertPressureIntegral(int shield, long long begin_time, long lo
 
     //std::cout << "Query: " << queryInsertShield.toStdString().c_str() << std::endl;
     if(db.isOpen()){
-    pressure_index_query = QSqlQuery(db);
-    pressure_index_query.prepare(queryInsertShield);
-    pressure_index_query.bindValue( ":stoppage_duration", (unsigned long long)stoppage_entries);
-    pressure_index_query.bindValue( ":press_hist", inByteArray);
-    std::cout << "Query to execute: " << queryInsertShield.toLocal8Bit().data() << std::endl;
-    //std::cout << "pressure_history[0] = " << pressure_history[0] << std::endl;
+        pressure_index_query = QSqlQuery(db);
+        pressure_index_query.prepare(queryInsertShield);
+        pressure_index_query.bindValue( ":stoppage_duration", (unsigned long long)stoppage_entries);
+        pressure_index_query.bindValue( ":press_hist", inByteArray);
+        std::cout << "Query to execute: " << queryInsertShield.toLocal8Bit().data() << std::endl;
+        //std::cout << "pressure_history[0] = " << pressure_history[0] << std::endl;
 
-    //if(pressure_index_query.exec(queryInsertShield)){
-    if(pressure_index_query.exec()){
-        std::cout << "Succesfully inserted pressure integral" << std::endl;
-        std::cout << pressure_index_query.executedQuery().toLocal8Bit().data() << std::endl;
-        return 0;
-    } else {
-        std::cout << "Database error" << std::endl;
-        QSqlError err = pressure_index_query.lastError();
-        std::cout << "Error message: " <<err.text().toStdString().c_str() << std::endl;
-        return -1;
-    }} else {
+        //if(pressure_index_query.exec(queryInsertShield)){
+        if(pressure_index_query.exec()){
+            std::cout << "Succesfully inserted pressure integral" << std::endl;
+            std::cout << pressure_index_query.executedQuery().toLocal8Bit().data() << std::endl;
+            return 0;
+        } else {
+            std::cout << "Database error" << std::endl;
+            QSqlError err = pressure_index_query.lastError();
+            std::cout << "Error message: " <<err.text().toStdString().c_str() << std::endl;
+            return -1;
+        }} else {
         std::cout << "Database NOT OPENED" << std::endl;
         return -1;
     }

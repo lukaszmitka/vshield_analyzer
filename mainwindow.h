@@ -7,6 +7,8 @@
 #include "pressuregainindexdialog.h"
 #include "pressurelimitdialog.h"
 #include "staytimedialog.h"
+#include "vshieldanalyzerworker.h"
+#include "vshieldprogressdialog.h"
 #include <QFileDialog>
 #include <QTextCodec>
 #include <QString>
@@ -16,6 +18,9 @@
 #include <QAction>
 #include <QWidgetAction>
 #include <QWidget>
+#include <QStandardPaths>
+#include <algorithm>
+
 
 namespace Ui {
 class MainWindow;
@@ -64,6 +69,7 @@ private:
     QAction *qAction_select_existing_db;
     QAction *qAction_create_db;
     QAction *qAction_openVShield;
+    QAction *qAction_openVShieldFolder;
     QAction *qAction_analyze_vshield;
     QAction *qAction_stay_time;
     QAction *qAction_pressure_limit;
@@ -84,6 +90,7 @@ private slots:
     void determinePressureIndex();
     void vShieldAnalyze();
     void openVShieldFile();
+    void openVShieldFolder();
     void openDatabase();
     void newDatabase();
     void setActiveActions();
