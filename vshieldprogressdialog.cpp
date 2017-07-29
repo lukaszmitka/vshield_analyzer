@@ -11,8 +11,8 @@ VShieldProgressDialog::VShieldProgressDialog(QString directory, QStringList file
     progressBar = new QProgressBar;
     progressBar->setRange(0,100);
 
-    cancelButton = new QPushButton(tr("Anuluj"));
-    connect(cancelButton, SIGNAL(clicked()), this, SLOT(close()));
+    //cancelButton = new QPushButton(tr("Anuluj"));
+    //connect(cancelButton, SIGNAL(clicked()), this, SLOT(close()));
     okButton = new QPushButton(tr("OK"));
     okButton->setDisabled(true);
     connect(okButton, SIGNAL(clicked()), this, SLOT(accept()));
@@ -23,8 +23,8 @@ VShieldProgressDialog::VShieldProgressDialog(QString directory, QStringList file
 
     buttons_layout = new QHBoxLayout;
     buttons_layout->addWidget(okButton);
-    buttons_layout->addSpacing(20);
-    buttons_layout->addWidget(cancelButton);
+    //buttons_layout->addSpacing(20);
+    //buttons_layout->addWidget(cancelButton);
 
     mainLayout = new QVBoxLayout;
     mainLayout->addLayout(numberOfFilesLayout);

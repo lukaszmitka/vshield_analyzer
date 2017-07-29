@@ -35,7 +35,7 @@ private:
 
     QProgressBar *progressBar;
 
-    QPushButton *cancelButton;
+    //QPushButton *cancelButton;
     QPushButton *okButton;
 
     QHBoxLayout *numberOfFilesLayout;

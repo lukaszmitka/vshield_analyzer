@@ -42,6 +42,8 @@ private:
     bool check_db_integrity(QSqlDatabase database);
     bool create_new_database();
     bool check_shields_table(std::vector <Shield> current_state, bool init_table);
+    void process_VShieldFiles(QString directory, QStringList files, QSqlQuery sqlQuery);
+    void process_VShieldFiles(QStringList files, QSqlQuery sqlQuery);
     int calculate_pressure_integral(int shield_id);
     int insertPressureIntegral(int shield, long long begin_time, long long end_time, double integral, std::vector<double> pressure_history);
 

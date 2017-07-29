@@ -105,7 +105,7 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_openVShield);
     fileMenu->addAction(qAction_openVShieldFolder);
-    fileMenu->addAction(qAction_analyze_vshield);
+    //fileMenu->addAction(qAction_analyze_vshield);
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_pressure_limit);
     fileMenu->addAction(qAction_stay_time);
@@ -510,8 +510,17 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
  * @brief MainWindow::openVShieldFile
  */
 void MainWindow::openVShieldFile(){
-    QString filename = QFileDialog::getOpenFileName(this, tr("Otwórz plik VShield"),tr(""),tr("Pliki VShield (*.LogVShield10)"));
-    if(filename.isNull()){
+    QStringList filenames = QFileDialog::getOpenFileNames(this, tr("Otwórz plik VShield"),tr(""),tr("Pliki VShield (*.LogVShield10)"));
+    if(filenames.isEmpty()){
+        QString statuBarMessage("No file selected");
+        statusBar()->showMessage(statuBarMessage,0);
+        std::cout << "No file selected" << std::endl;
+        vshield_selected = false;
+    } else {
+        process_VShieldFiles(filenames, query);
+    }
+
+    /*if(filename.isNull()){
         QString statuBarMessage("D1: No file selected");
         statusBar()->showMessage(statuBarMessage,0);
         std::cout << "No file selected" << std::endl;
@@ -531,7 +540,7 @@ void MainWindow::openVShieldFile(){
         } else {
             vshield_selected = false;
         }
-    }
+    }*/
 }
 
 /** Slot for UI button action. Select folder and check files inside if they are compatible with VShield standard.
@@ -547,22 +556,7 @@ void MainWindow::openVShieldFolder(){
         filters << "*.LogVShield10";
         vshDir.setNameFilters(filters);
         QStringList files = vshDir.entryList();
-        if(!files.isEmpty()){
-            VShieldProgressDialog progressDialog(foldername, files, query);
-            if(progressDialog.exec()){
-                progressDialog.getNumberOfShields(&number_of_shields);
-                //stayTimeDlg.getStayTime(&min_stay_time, &max_stay_time);
-                /*QString statusBarMessage("Minimalny czas postoju: ");
-                statusBarMessage.append(QString::number(min_stay_time));
-                statusBarMessage.append(", maksymalny czas postoju: ");
-                statusBarMessage.append(QString::number(max_stay_time));
-                statusBar()->showMessage(statusBarMessage,0);*/
-            }
-        } else {
-            QString statuBarMessage("No VShield files in selected directory");
-            statusBar()->showMessage(statuBarMessage,0);
-            std::cout << "No VShield files in selected directory" << std::endl;
-        }
+        process_VShieldFiles(foldername, files, query);
     } else {
         QString statuBarMessage("No directory selected");
         statusBar()->showMessage(statuBarMessage,0);
@@ -570,6 +564,54 @@ void MainWindow::openVShieldFolder(){
     }
     vshield_selected = false;
 
+}
+
+/**
+ * @brief MainWindow::process_VShieldFile Function to process VShield files
+ * @param files List of files with full path
+ * @param query Query to be used for inserting data to databse
+ */
+void MainWindow::process_VShieldFiles(QStringList files, QSqlQuery sqlQuery){
+    if(!files.isEmpty()){
+        QStringList filenamesList;
+        QString filename = files.at(0);
+        QFileInfo fi(filename);
+        //QDir d = fi.absoluteDir();
+        QString directory = fi.absolutePath();
+        std::cout << "Chosen directory: " << directory.toLocal8Bit().data() << std::endl;
+        for (unsigned int i=0; i<files.size(); i++){
+            filename = files.at(i);
+            fi = QFileInfo(filename);
+            filenamesList.append(fi.fileName());
+            std::cout << "Chosen file: " << filenamesList.at(i).toLocal8Bit().data()<< std::endl;
+        }
+        process_VShieldFiles(directory, filenamesList, sqlQuery);
+    }
+}
+
+/**
+ * @brief MainWindow::process_VShieldFile Function to process VShield files
+ * @param directory Directory containing files
+ * @param files List of file names
+ * @param query Query to be used for inserting data to databse
+ */
+void MainWindow::process_VShieldFiles(QString directory, QStringList files, QSqlQuery sqlQuery){
+    if(!files.isEmpty()){
+        VShieldProgressDialog progressDialog(directory, files, sqlQuery);
+        if(progressDialog.exec()){
+            progressDialog.getNumberOfShields(&number_of_shields);
+            //stayTimeDlg.getStayTime(&min_stay_time, &max_stay_time);
+            /*QString statusBarMessage("Minimalny czas postoju: ");
+            statusBarMessage.append(QString::number(min_stay_time));
+            statusBarMessage.append(", maksymalny czas postoju: ");
+            statusBarMessage.append(QString::number(max_stay_time));
+            statusBar()->showMessage(statusBarMessage,0);*/
+        }
+    } else {
+        QString statuBarMessage("No VShield files in selected directory");
+        statusBar()->showMessage(statuBarMessage,0);
+        std::cout << "No VShield files in selected directory" << std::endl;
+    }
 }
 
 /** Slot for UI button action. Determine limiting pressures for searching integral.
@@ -644,7 +686,7 @@ int  MainWindow::calculate_pressure_integral(int shield_id){
     std::vector<double> avg_pressure; // MPa
     std::vector<double> time; //minutes
     QString select_query;
-    double integral;
+    double integral; // MPa
 
     std::vector<int> pi_shield;
     std::vector<long long> pi_begin;
@@ -678,12 +720,13 @@ int  MainWindow::calculate_pressure_integral(int shield_id){
                 if(support_begin_pos != (query.value(6).toDouble()/1000)){
 
                     if(time_diff>max_stay_time){
-                        //std::cout << "Postój od " << stay_begin_timestamp << " do " << stay_end_timestamp << std::endl;
+                        std::cout << "Postój od " << stay_begin_timestamp << " do " << stay_end_timestamp << std::endl;
                         std::cout << "Stay time " << time_diff << std::endl;
                         if(avg_pressure.at(0) > min_pressure && avg_pressure.at(0) < max_pressure){
                             std::cout << "Calculate integral... ";
                             integral = 0;
                             for(int i = 1; i< avg_pressure.size(); i++){
+                                //std::cout << "Time diff: " << time[i]-time[i-1] << std::endl;
                                 integral = integral + 0.5*(avg_pressure[i]+avg_pressure[i-1])*(60*(time[i]-time[i-1]));
                             }
                             std::cout << "   " << integral << std::endl;
@@ -1025,8 +1068,10 @@ void MainWindow::setActiveActions(){
     //std::cout << "Set active menu items"<<std::endl;
     if(db_selected){
         qAction_openVShield->setEnabled(true);
+        qAction_openVShieldFolder->setEnabled(true);
     } else {
         qAction_openVShield->setEnabled(false);
+        qAction_openVShieldFolder->setEnabled(false);
     }
     if(db_selected && vshield_selected){
         qAction_analyze_vshield->setEnabled(true);

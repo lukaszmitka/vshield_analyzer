@@ -92,7 +92,7 @@ void VShieldAnalyzerWorker::process(){
                 }
 
                 major_progress = (100 * current_file_id)/num_of_files_to_process;
-                minor_progress = (50/num_of_files_to_process) + (25 * fc_counter)/states_no;
+                minor_progress = (50/num_of_files_to_process) + ((50/num_of_files_to_process)* fc_counter)/states_no;
                 emit setValue(major_progress + minor_progress);
                 fc_counter++;
             }
