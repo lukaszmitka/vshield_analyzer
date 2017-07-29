@@ -20,7 +20,7 @@
 #include <QWidget>
 #include <QStandardPaths>
 #include <algorithm>
-
+#include <exportcsvdialog.h>
 
 namespace Ui {
 class MainWindow;

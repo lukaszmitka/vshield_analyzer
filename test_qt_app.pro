@@ -29,7 +29,8 @@ SOURCES += main.cpp\
     pressuregainindexdialog.cpp \
     indexedqcheckbox.cpp \
     vshieldanalyzerworker.cpp \
-    vshieldprogressdialog.cpp
+    vshieldprogressdialog.cpp \
+    exportcsvdialog.cpp
 
 HEADERS  += mainwindow.h \
     vshieldreader.h \
@@ -41,6 +42,7 @@ HEADERS  += mainwindow.h \
     pressuregainindexdialog.h \
     indexedqcheckbox.h \
     vshieldanalyzerworker.h \
-    vshieldprogressdialog.h
+    vshieldprogressdialog.h \
+    exportcsvdialog.h
 
 FORMS    += mainwindow.ui

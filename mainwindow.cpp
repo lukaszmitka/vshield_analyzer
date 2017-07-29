@@ -125,13 +125,40 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
 }
 
 void MainWindow::export_to_csv(){
+    bool exportIntegral;
+    bool exportRawData;
+    int interval;
+    int intervalCounter;
+
+    ExportCSVDialog exportDialog;
+    if(exportDialog.exec()){
+        // process data
+        exportDialog.getDataToProcess(&exportIntegral, &exportRawData, &interval);
+        if(exportIntegral){
+            std::cout << "Will export integral" << std::endl;
+        }
+        if(exportRawData){
+            std::cout << "Will export raw data with interval " << interval << std::endl;
+            intervalCounter = interval/30;
+            std::cout << "INterval counter: " << intervalCounter << std::endl;
+        }
+    } else {
+        return;
+    }
+
+    if(!exportIntegral && !exportRawData){
+        std::cout << "No data to export selected" << std::endl;
+        QString statuBarMessage("No data to export selected");
+        statusBar()->showMessage(statuBarMessage,0);
+        return;
+    }
     // SQLite query for selecting shield
     QString filename = QFileDialog::getSaveFileName(this, tr("Wybierz plik do zapisu"),tr(""),tr("Pliki csv (*.csv)"));
     if(filename.isNull()){
         std::cout << "No file selected" << std::endl;
         QString statuBarMessage("Operacja anulowana przez użytkownika");
         statusBar()->showMessage(statuBarMessage,0);
-    } else{
+    } else {
         QString statuBarMessage("Wybrany plik: ");
         statuBarMessage.append(filename);
         statusBar()->showMessage(statuBarMessage,0);
@@ -147,6 +174,15 @@ void MainWindow::export_to_csv(){
         long long end_time;
         float pressure_integral;
         int stoppage_entries;
+        QString fileHeader;
+        fileHeader.append("Numer obudowy; początek przestoju; koniec przestoju");
+        if(exportIntegral){
+            fileHeader.append("; wartość całki");
+        }
+        if(exportRawData){
+            fileHeader.append("; przebieg średniego ciśnienia");
+        }
+        csv_out << fileHeader << endl;
         QByteArray qBA;
         std::vector<double> pressure_history;
         while(query.next()){
@@ -155,60 +191,56 @@ void MainWindow::export_to_csv(){
             end_time = query.value(2).toLongLong();
             pressure_integral = query.value(3).toFloat();
             stoppage_entries = query.value(4).toInt();
-            qBA = query.value(5).toByteArray();
 
+            QDateTime dateTime;
+            QString line;
+            line.append(std::to_string(shield).c_str());
+            line.append("; ");
+            dateTime.setMSecsSinceEpoch(begin_time);
+            line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
+            line.append("; ");
+            dateTime.setMSecsSinceEpoch(end_time);
+            line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
+            if(exportIntegral){
+                line.append("; ");
+                std::string integral_string = std::to_string(pressure_integral);
+                std::replace( integral_string.begin(), integral_string.end(), '.', ',');
+                line.append(integral_string.c_str());
+            }
+            int byte_array_size;
             double tmp;
             std::cout << "Entries = " << stoppage_entries << ", entry size = " << sizeof(tmp) << std::endl;
-            int byte_array_size = qBA.size();
-            //std::cout <<"BLOB size: " << byte_array_size;
+            if(exportRawData){
+                qBA = query.value(5).toByteArray();
+                byte_array_size = qBA.size();
+                std::cout << "BLOB size: " << byte_array_size << std::endl;
+                if (byte_array_size/sizeof(tmp) == stoppage_entries)
+                {
+                    std::cout << "Read BLOB" <<std::endl;
+                    for (int i=0; i< stoppage_entries; i++){
+                        tmp = *reinterpret_cast<const double*>(qBA.data());
+                        //std::cout << "Extracted data: " << tmp << std::endl;
+                        qBA.remove(0,8);
+                        pressure_history.push_back(tmp);
+                    }
+                    for (unsigned int i =0; i< pressure_history.size();i++){
+                        if(i%intervalCounter==0){
+                            line.append("; ");
+                            std::string pressure_string = std::to_string(pressure_history[i]);
+                            std::replace( pressure_string.begin(), pressure_string.end(), '.', ',');
+                            line.append(pressure_string.c_str());
+                        }
 
-            if (byte_array_size/sizeof(tmp) == stoppage_entries)
-            {
-                std::cout << "Read BLOB" <<std::endl;
-                for (int i=0; i< stoppage_entries; i++){
-                    tmp = *reinterpret_cast<const double*>(qBA.data());
-                    //std::cout << "Extracted data: " << tmp << std::endl;
-                    qBA.remove(0,8);
-                    pressure_history.push_back(tmp);
+                    }
+                } else
+                {
+                    std::cout << "Wrong BLOB size." <<std::endl;
+                    csv_out << "Wrong BLOB size." << endl;
                 }
-
-                QDateTime dateTime;
-                QString line;
-                line.append(std::to_string(shield).c_str());
-                line.append(", ");
-                dateTime.setMSecsSinceEpoch(begin_time);
-                line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
-                //line.append(std::to_string(begin_time).c_str());
-
-                line.append(", ");
-                //line.append(std::to_string(end_time).c_str());
-                dateTime.setMSecsSinceEpoch(end_time);
-                line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
-                line.append(", ");
-                line.append(std::to_string(pressure_integral).c_str());
-                for (unsigned int i =0; i< pressure_history.size();i++){
-                    line.append(", ");
-                    std::string pressure_string = std::to_string(pressure_history[i]);
-                    std::replace( pressure_string.begin(), pressure_string.end(), ',', '.'); // replace all 'x' to 'y'
-                    line.append(pressure_string.c_str());
-                }
-                csv_out << line << endl;
-                line.clear();
-                pressure_history.clear();
-
-            } else
-            {
-                std::cout << "Wrong BLOB size." <<std::endl;
-                csv_out << "Wrong BLOB size." << endl;
             }
-
-            /*std::cout << "BLOB data: ";
-                for (int i =0; i< pressure_history.size();i++){
-                    std::cout << pressure_history[i] << ", ";
-                }
-                std::cout <<  std::endl;*/
-
-
+            csv_out << line << endl;
+            line.clear();
+            pressure_history.clear();
         }
     }
 }
