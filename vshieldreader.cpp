@@ -21,6 +21,77 @@ VShieldReader::VShieldReader(std::string filename){
     std::cout << "File length: " << tmp_len << std::endl;
     vshield_file.seekg(0, vshield_file.beg);
 
+
+    for (int i = 0; i < 11; i++) {
+        vect_version_7.push_back(version_7[i]);
+    }
+    for (int i = 0; i < 12; i++) {
+        vect_version_11.push_back(version_11[i]);
+    }
+    for (int i = 0; i < 18; i++) {
+        vect_version_12.push_back(version_12[i]);
+    }
+    for (int i = 0; i < 18; i++) {
+        vect_version_2_V6.push_back(version_2_V6[i]);
+    }
+
+    // search for <VersionId>
+    std::cout << "Checking file version."<< std::endl;
+    char pattern_version_id[] = {'<', 'V', 'e', 'r', 's', 'i', 'o', 'n', 'I', 'd', '>'};
+    int pattern_version_id_length = sizeof(pattern_version_id) / sizeof(*pattern_version_id);
+    std::vector<unsigned char> vect_pattern_ver_id;
+    vect_pattern_ver_id.clear();
+    file_content.clear();
+    // Insert pattern into vector
+    for (int i = 0; i < pattern_version_id_length; i++) {
+        vect_pattern_ver_id.push_back(pattern_version_id[i]);
+    }
+    // Read file into vector
+    for (int i = 0; i < pattern_version_id_length; i++) {
+        vshield_file.read(&buf[0], 1);
+        file_content.push_back((unsigned char) buf[0]);
+    }
+    // Compare vectors until match
+    while (vect_pattern_ver_id != file_content) {
+        vshield_file.read(&buf[0], 1);
+        file_content.erase(file_content.begin());
+        file_content.push_back((unsigned char) buf[0]);
+    }
+    std::cout << "Found <VersionId> marker."<< std::endl;
+
+    file_content.clear();
+    vshield_file.read(&buf[0], 1);
+    while (buf[0]!='<'){
+        std::cout << "Next character: "<< buf[0] <<"."<< std::endl;
+        file_content.push_back(buf[0]);
+        vshield_file.read(&buf[0], 1);
+    }
+    std::cout << "Version found: " << file_content.data() << std::endl;
+
+
+    if(file_content == vect_version_7){
+        // Version 7 of file found
+        file_version = e_version_7;
+        std::cout << "File version is " << file_version << ": " << VSHIELD_VERSION_7 << std::endl;
+    } else if(file_content == vect_version_11){
+        // Version 11 of file found
+        file_version = e_version_11;
+        std::cout << "File version is " << file_version << ": " << VSHIELD_VERSION_11 << std::endl;
+    } else if (file_content == vect_version_12){
+        // Version 12 of file found
+        file_version = e_version_12;
+        std::cout << "File version is " << file_version << ": " << VSHIELD_VERSION_12 << std::endl;
+    } else if(file_content == vect_version_2_V6){
+        // Version 2 V6 of ifle found
+        file_version = e_version_2_v6;
+        std::cout << "File version is " << file_version << ": " << VSHIELD_VERSION_2_V6 << std::endl;
+    }
+
+    std::cout << "File version is " << file_version << std::endl;
+
+    file_content.clear();
+
+
     // search for </PmcRParams>
     char pattern_head_end[] = {'<', '/', 'P', 'm', 'c', 'R', 'P', 'a', 'r', 'a', 'm', 's', '>'};
     int pattern_hed_end_length = sizeof(pattern_head_end) / sizeof(*pattern_head_end);
@@ -47,7 +118,7 @@ VShieldReader::VShieldReader(std::string filename){
         shield_header = define_shield_header();
         int filename_len = (int) vshield_file_name.length();
         std::string filename_date = vshield_file_name.substr(filename_len-21, 8);
-        //std::cout << "Filename date: " << filename_date << std::endl;
+        std::cout << "Filename date: " << filename_date << std::endl;
         std::string s_year = filename_date.substr(0,4);
         std::string s_month = filename_date.substr(4,2);
         std::string s_day = filename_date.substr(6,2);
@@ -68,6 +139,7 @@ bool VShieldReader::get_vshield_file_state(){
     return vshield_file_ok;
 }
 
+// Probably not used anymore - check it
 int VShieldReader::find_pattern_in_file(std::ifstream &file, std::vector<unsigned char> &pattern){
     std::cout << "Start reading file!" << std::endl;
     int occurences = 0;
@@ -95,6 +167,7 @@ int VShieldReader::find_pattern_in_file(std::ifstream &file, std::vector<unsigne
     //file.read(&init_buf[0], pattern_length);
 
     // search for </PmcRParams>
+    file_content.clear();
     char patter_head_end[] = {'<', '/', 'P', 'm', 'c', 'R', 'P', 'a', 'r', 'a', 'm', 's', '>'};
     int pattern_hed_end_length = sizeof(patter_head_end) / sizeof(*patter_head_end);
     std::vector<unsigned char> vect_pattern_head_end;
@@ -251,31 +324,33 @@ int VShieldReader::run_main(){
 }
 
 bool VShieldReader::go_to_next_timestamp(FaceState *facestate, int *position){
+    std::cout << "Searching for timestamp";
     Shield tmp_sh;
     int32_t tmp_ts = 0;
     int shields_read = 0;
     //bool dest_reached = false;
     int32_t dest_timestamp = file_date.msecsTo(facestate->get_timestamp().addSecs(TIMESTAMP_INTERVAL));
+    std::cout << ", while loop()..." << std::endl;
     while(dest_timestamp > tmp_ts){
-        //std::cout << "Read next entry:";
+        std::cout << "Read next entry:" << std::endl;
         if(read_next_entry(&tmp_sh, vshield_file, shield_header, position, &tmp_ts)){
             if(dest_timestamp>40000000 && tmp_ts <1000000){
                 tmp_ts+=86400000;
             }
-            //std::cout << " OK, ";
-            //std::cout<<tmp_sh.string_desc()<< ", ts = " << tmp_ts << std::endl;
+            std::cout << " OK, ";
+            std::cout<<tmp_sh.string_desc()<< ", ts = " << tmp_ts << std::endl;
             facestate->update_state(tmp_sh);
             shields_read++;
-            //std::cout << "Procdessed shields: " << shields_read << std::endl;
+            std::cout << "Procdessed shields: " << shields_read << std::endl;
         } else {
             std::cout << "End of file" << std::endl;
             tmp_ts = dest_timestamp;
             return false;
         }
-        //std::cout<< "Dest = " << dest_timestamp << ", tmp = " << tmp_ts << std::endl;
+        std::cout<< "Dest = " << dest_timestamp << ", tmp = " << tmp_ts << std::endl;
     }
     facestate->update_state(facestate->get_timestamp().addSecs(TIMESTAMP_INTERVAL));
-    //std::cout << "At timestamp " << facestate->get_timestamp().toString().toLocal8Bit().data() << " found " << shields_read << " shields." << std::endl;
+    std::cout << "At timestamp " << facestate->get_timestamp().toString().toLocal8Bit().data() << " found " << shields_read << " shields." << std::endl;
     return true;
 }
 
@@ -286,8 +361,32 @@ bool VShieldReader::init_read(QDate date, int *position, FaceState *faceState){
     int tmp_ts = 0;
     int last_timestamp = 0;
     bool all_shields_found = false;
-    while(read_next_entry(&tmp_sh, vshield_file, shield_header, position, &tmp_ts) && !all_shields_found){
-        try {
+    std::cout << "Searching for shields with header size: " << shield_header.size()  << std::endl;
+    int max_id=0;
+    int shield_detected = 0;
+    while(read_next_entry(&tmp_sh, vshield_file, shield_header, position, &tmp_ts) && !all_shields_found && shield_detected<200){
+
+
+        if(max_id<tmp_sh.get_id()){
+            max_id=tmp_sh.get_id();
+            shields.resize(max_id);
+
+        }
+        if(shields.at(tmp_sh.get_id()-1).get_id()==tmp_sh.get_id()){
+            // shield was found earlier
+            shield_detected++;
+        } else {
+            shields.at(tmp_sh.get_id()-1)=tmp_sh;
+            //last_timestamp = tmp_ts;
+
+            //shields.push_back(tmp_sh);
+            last_timestamp = tmp_ts;
+
+        }
+
+
+
+        /*try {
             shields.at(tmp_sh.get_id()-1);
             all_shields_found = true;
         }
@@ -296,14 +395,16 @@ bool VShieldReader::init_read(QDate date, int *position, FaceState *faceState){
             shields.push_back(tmp_sh);
             last_timestamp = tmp_ts;
             //std::cout << " at pos " << shields.size()-1 << " with ts = " << tmp_ts << std::endl;
-        }
+        }*/
+
     }
+    all_shields_found = true;
     QDateTime ts;
     ts.setDate(date);
-    //std::cout << "QDate: " << ts.toString().toLocal8Bit().data() << std::endl;
+    std::cout << "QDate: " << ts.toString().toLocal8Bit().data() << std::endl;
     ts = ts.addMSecs(last_timestamp);
-    //std::cout << "Added seconds: " << last_timestamp << std::endl;
-    //std::cout << "QDate: " << ts.toString().toLocal8Bit().data() << std::endl;
+    std::cout << "Added seconds: " << last_timestamp << std::endl;
+    std::cout << "QDate: " << ts.toString().toLocal8Bit().data() << std::endl;
     ts = ts.addSecs(TIMESTAMP_INTERVAL -( ts.time().second() % TIMESTAMP_INTERVAL));
     std::cout << "QDate: " << ts.toString().toLocal8Bit().data() << std::endl;
     faceState->update_state(shields, ts);
@@ -325,12 +426,16 @@ std::vector<FaceState> VShieldReader::extract_data(){
         facestates.push_back(fs);
         std::cout << "Read initialization completed" << std::endl;
         double progress;
+        pos_in_file = metadata_end;
+        std::cout << "Begin processing data." << std::endl;
         while(go_to_next_timestamp(&fs, &pos_in_file)){
+            std::cout << "Processing next timestamp" << std::endl;
             facestates.push_back(fs);
             //std::cout << "File length: " << file_length << ", position: " << pos_in_file << ", progress: " << progress << std::endl;
             progress = ((double)pos_in_file)/((double)file_length);
             emit fileProgress(progress);
         }
+        std::cout << "All timestamps analyzed" << std::endl;
     }
     vshield_file.close();
     vshield_file_ok = false;
@@ -339,7 +444,25 @@ std::vector<FaceState> VShieldReader::extract_data(){
 
 std::vector<unsigned char>  VShieldReader::define_shield_header(){
     std::vector<unsigned char>  shield_head;
-    char c_shield_head[] = {(char)0x66, (char)0x01, (char)0x40, (char)0xf6, (char)0x01, (char)0xf6, (char)0x01}; // beginning of the shield
+    //66 - dla wersji 1
+    //6e - dla wersji 2
+    //6f - dla wersji 3
+    char data_length;
+    switch (file_version){
+    case e_version_7: data_length = VSHIELD_VERSION_7_DATA_LEN;
+        break;
+    case e_version_11: data_length = VSHIELD_VERSION_11_DATA_LEN;
+        break;
+    case e_version_12: data_length = VSHIELD_VERSION_12_DATA_LEN;
+        break;
+    case e_version_2_v6: data_length = VSHIELD_VERSION_2_V6_DATA_LEN;
+        break;
+    default:
+        data_length = 0;
+    }
+    //std::count << "Data length is: " << ((int)data_length) << std::endl;
+
+    char c_shield_head[] = {(char)data_length, (char)0x01, (char)0x40, (char)0xf6, (char)0x01, (char)0xf6, (char)0x01}; // beginning of the shield
     //std::cout << &c_shield_head[0]<<std::endl;
     int head_length = sizeof(c_shield_head) / sizeof(*c_shield_head);
     for (int i = 0; i < head_length; i++) {
@@ -349,7 +472,7 @@ std::vector<unsigned char>  VShieldReader::define_shield_header(){
 }
 
 bool VShieldReader::read_next_entry(Shield *shield, std::ifstream &file, std::vector<unsigned char> &pattern, int *position, int32_t *timestamp_update){
-    //std::cout << "Reading at pos: " << *position << "...";
+    std::cout << "Reading at pos: " << *position << "...";
     std::vector<unsigned char> data_read;
     char buf[1];
     char timestamp_buf[4];
@@ -369,23 +492,32 @@ bool VShieldReader::read_next_entry(Shield *shield, std::ifstream &file, std::ve
     file.seekg(*position, file.beg);
 
     // read first portion of data
+    std::cout << "Read first portion of data... ";
     data_read.clear();
     for (int i = 0; i < pattern_length; i++) {
+        *position = file.tellg();
         file.read(&buf[0], 1);
         data_read.push_back((unsigned char) buf[0]);
     }
+    std::cout << "pattern length: " << pattern.size() << ", data length: " << data_read.size();
+
+    std::cout << ". Search for next entry" << std::endl;
 
     while (file.eof() == 0 && pattern != data_read) {
         file.read(&buf[0], 1);
+        *position = file.tellg();
         data_read.erase(data_read.begin());
         data_read.push_back((unsigned char) buf[0]);
     }
 
     if (file.eof() != 0)
     {
+        std::cout << "Reached end of file" << std::endl;
+
         // Reached end of file
         return false;
     } else {
+        std::cout << "Found next entry" << std::endl;
         file.read(&buf[0], 1);
         shield_number = (unsigned char) buf[0];
         file.read(&buf[0], 1);

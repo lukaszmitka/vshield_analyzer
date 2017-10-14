@@ -17,6 +17,7 @@ void VShieldAnalyzerWorker::process(){
         connect(vShieldReader, SIGNAL(fileProgress(double)), this, SLOT(fileProgress(double)));
 
         std::vector <FaceState> facestates;
+        std::cout << "Begin data extraction" << std::endl;
         facestates = vShieldReader->extract_data();
         int states_no = facestates.size();
         if(states_no==0){
