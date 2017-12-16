@@ -45,7 +45,7 @@ private:
     void process_VShieldFiles(QString directory, QStringList files, QSqlQuery sqlQuery);
     void process_VShieldFiles(QStringList files, QSqlQuery sqlQuery);
     int calculate_pressure_integral(int shield_id);
-    int insertPressureIntegral(int shield, long long begin_time, long long end_time, double integral, std::vector<double> pressure_history);
+    int insertPressureIntegral(int shield, long long begin_time, long long end_time, double integral, std::vector<double> pressure_history,  std::vector<double> derivative);
 
     //enum shield_params;
     enum shield_params{
@@ -90,7 +90,7 @@ private slots:
     void dialogGetPressureLimits();
     void dialogGetStayTime();
     void determinePressureIndex();
-    void vShieldAnalyze();
+    //void vShieldAnalyze();
     void openVShieldFile();
     void openVShieldFolder();
     void openDatabase();

@@ -140,7 +140,7 @@ bool VShieldReader::get_vshield_file_state(){
 }
 
 // Probably not used anymore - check it
-int VShieldReader::find_pattern_in_file(std::ifstream &file, std::vector<unsigned char> &pattern){
+/*int VShieldReader::find_pattern_in_file(std::ifstream &file, std::vector<unsigned char> &pattern){
     std::cout << "Start reading file!" << std::endl;
     int occurences = 0;
     int uncounted = 0;
@@ -296,8 +296,9 @@ int VShieldReader::find_pattern_in_file(std::ifstream &file, std::vector<unsigne
     std::cout << "Found " << uncounted << " uncounted patterns." << std::endl;
     std::cout << "End reading file!" << std::endl;
     return 0;
-}
+}*/
 
+/*
 int VShieldReader::run_main(){
     std::cout << "Analyzing VShield!" << std::endl;
 
@@ -321,7 +322,7 @@ int VShieldReader::run_main(){
     } else {
         return -1;
     }
-}
+}*/
 
 bool VShieldReader::go_to_next_timestamp(FaceState *facestate, int *position){
     std::cout << "Searching for timestamp";

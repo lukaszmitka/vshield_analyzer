@@ -8,8 +8,6 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     setWindowTitle(tr("VShield analyzer"));
     setMinimumSize(300, 300);
     resize(1000, 800);
-    // TODO change size
-    //resize(1000, 800);
     //showFullScreen();
 
     // give the axes some labels:
@@ -130,6 +128,7 @@ void MainWindow::export_to_csv(){
     int interval;
     int intervalCounter;
 
+    // TODO dołożyć press_deriv do csv
     ExportCSVDialog exportDialog;
     if(exportDialog.exec()){
         // process data
@@ -579,7 +578,7 @@ void MainWindow::process_VShieldFiles(QStringList files, QSqlQuery sqlQuery){
         //QDir d = fi.absoluteDir();
         QString directory = fi.absolutePath();
         std::cout << "Chosen directory: " << directory.toLocal8Bit().data() << std::endl;
-        for (unsigned int i=0; i<files.size(); i++){
+        for (int i=0; i<files.size(); i++){
             filename = files.at(i);
             fi = QFileInfo(filename);
             filenamesList.append(fi.fileName());
@@ -687,12 +686,14 @@ int  MainWindow::calculate_pressure_integral(int shield_id){
     std::vector<double> time; //minutes
     QString select_query;
     double integral; // MPa
+    std::vector<double> derivative; //derivative of pressure function
 
     std::vector<int> pi_shield;
     std::vector<long long> pi_begin;
     std::vector<long long> pi_end;
     std::vector<double> pi_integral;
     std::vector<std::vector<double>> pi_pressure_history;
+    std::vector<std::vector<double>> pi_pressure_derivative;
 
 
     // Function begining
@@ -728,6 +729,7 @@ int  MainWindow::calculate_pressure_integral(int shield_id){
                             for(int i = 1; i< avg_pressure.size(); i++){
                                 //std::cout << "Time diff: " << time[i]-time[i-1] << std::endl;
                                 integral = integral + 0.5*(avg_pressure[i]+avg_pressure[i-1])*(60*(time[i]-time[i-1]));
+                                derivative.push_back((avg_pressure[i]-avg_pressure[i-1])/(60*(time[i]-time[i-1])));
                             }
                             std::cout << "   " << integral << std::endl;
 
@@ -736,6 +738,7 @@ int  MainWindow::calculate_pressure_integral(int shield_id){
                             pi_end.push_back(raw_end_timestamp);
                             pi_integral.push_back(integral);
                             pi_pressure_history.push_back(avg_pressure);
+                            pi_pressure_derivative.push_back(derivative);
                         }
                     }
                 }
@@ -748,6 +751,7 @@ int  MainWindow::calculate_pressure_integral(int shield_id){
                 new_stay = true;
                 avg_pressure.clear();
                 time.clear();
+                derivative.clear();
             }
 
         }
@@ -755,12 +759,12 @@ int  MainWindow::calculate_pressure_integral(int shield_id){
     }
     query.finish();
     for (int i = 0; i<pi_shield.size(); i++){
-        insertPressureIntegral(pi_shield.at(i), pi_begin.at(i), pi_end.at(i), pi_integral.at(i), pi_pressure_history.at(i));
+        insertPressureIntegral(pi_shield.at(i), pi_begin.at(i), pi_end.at(i), pi_integral.at(i), pi_pressure_history.at(i), pi_pressure_derivative.at(i));
     }
     return (int)pi_shield.size();
 }
 
-int MainWindow::insertPressureIntegral(int shield, long long begin_time, long long end_time, double integral, std::vector<double> pressure_history){
+int MainWindow::insertPressureIntegral(int shield, long long begin_time, long long end_time, double integral, std::vector<double> pressure_history, std::vector<double> derivative){
     QString queryInsertShield("INSERT INTO pressure_index VALUES (");
     queryInsertShield.append(std::to_string(shield).c_str());
     queryInsertShield.append(", ");
@@ -775,7 +779,9 @@ int MainWindow::insertPressureIntegral(int shield, long long begin_time, long lo
     queryInsertShield.append(":stoppage_duration");
     queryInsertShield.append(", ");
     queryInsertShield.append(":press_hist");
-
+    queryInsertShield.append(", ");
+    // TODO check if database is suited to this values????
+    queryInsertShield.append(":press_deriv");
     queryInsertShield.append(");");
 
     QByteArray inByteArray;
@@ -785,12 +791,20 @@ int MainWindow::insertPressureIntegral(int shield, long long begin_time, long lo
         inByteArray.append(reinterpret_cast<const char*>(&pressure_history[i]), entry_size);
     }
 
+    QByteArray derivByteArray;
+    uint64_t deriv_entries = derivative.size();
+    int deriv_entry_size = sizeof(derivative[0]);
+    for (uint64_t i=0; i<deriv_entries; i++){
+        derivByteArray.append(reinterpret_cast<const char*>(&derivative[i]), deriv_entry_size);
+    }
+
     //std::cout << "Query: " << queryInsertShield.toStdString().c_str() << std::endl;
     if(db.isOpen()){
         pressure_index_query = QSqlQuery(db);
         pressure_index_query.prepare(queryInsertShield);
         pressure_index_query.bindValue( ":stoppage_duration", (unsigned long long)stoppage_entries);
         pressure_index_query.bindValue( ":press_hist", inByteArray);
+        pressure_index_query.bindValue( ":press_deriv", derivByteArray);
         std::cout << "Query to execute: " << queryInsertShield.toLocal8Bit().data() << std::endl;
         //std::cout << "pressure_history[0] = " << pressure_history[0] << std::endl;
 
@@ -811,9 +825,11 @@ int MainWindow::insertPressureIntegral(int shield, long long begin_time, long lo
     //return 0;
 }
 
+
 /** Slot for UI button action. Extract data from VShield file and save it to database.
  * @brief MainWindow::vShieldAnalyze
  */
+/*
 void MainWindow::vShieldAnalyze(){
     std::vector <FaceState> facestates;
     facestates = vShieldReader->extract_data();
@@ -896,6 +912,7 @@ void MainWindow::vShieldAnalyze(){
     }
     vshield_selected = false;
 }
+*/
 
 /** Slot for UI button action. Create new database or overwrite existing one.
  * @brief MainWindow::newDatabase
@@ -1007,7 +1024,7 @@ bool MainWindow::open_database(QString database_name, bool init){
         } else {
             std::cout << "Error 3" << std::endl;
         }
-        if(query.exec("CREATE TABLE pressure_index(shield INT, begin_time INT, end_time INT, integral REAL, stoppage_duration INT, press_hist BLOB, FOREIGN KEY(begin_time) REFERENCES timestamps(timestamp), FOREIGN KEY(end_time) REFERENCES timestamps(timestamp), FOREIGN KEY(shield) REFERENCES shields(shield_number));")){
+        if(query.exec("CREATE TABLE pressure_index(shield INT, begin_time INT, end_time INT, integral REAL, stoppage_duration INT, press_hist BLOB, press_deriv BLOB, FOREIGN KEY(begin_time) REFERENCES timestamps(timestamp), FOREIGN KEY(end_time) REFERENCES timestamps(timestamp), FOREIGN KEY(shield) REFERENCES shields(shield_number));")){
             std::cout << "Table pressure_index was created" << std::endl;
         } else {
             std::cout << "Error 4" << std::endl;
