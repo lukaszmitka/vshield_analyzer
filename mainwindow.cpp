@@ -125,6 +125,7 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
 void MainWindow::export_to_csv(){
     bool exportIntegral;
     bool exportRawData;
+    bool exportDerivative;
     int interval;
     int intervalCounter;
 
@@ -132,20 +133,25 @@ void MainWindow::export_to_csv(){
     ExportCSVDialog exportDialog;
     if(exportDialog.exec()){
         // process data
-        exportDialog.getDataToProcess(&exportIntegral, &exportRawData, &interval);
+        exportDialog.getDataToProcess(&exportIntegral, &exportRawData, &exportDerivative, &interval);
         if(exportIntegral){
             std::cout << "Will export integral" << std::endl;
         }
         if(exportRawData){
             std::cout << "Will export raw data with interval " << interval << std::endl;
             intervalCounter = interval/30;
-            std::cout << "INterval counter: " << intervalCounter << std::endl;
+            std::cout << "Interval counter: " << intervalCounter << std::endl;
+        }
+        if(exportDerivative){
+            std::cout << "Will export derivative with interval " << interval << std::endl;
+            intervalCounter = interval/30;
+            std::cout << "Interval counter: " << intervalCounter << std::endl;
         }
     } else {
         return;
     }
 
-    if(!exportIntegral && !exportRawData){
+    if(!exportIntegral && !exportRawData && !exportDerivative){
         std::cout << "No data to export selected" << std::endl;
         QString statuBarMessage("No data to export selected");
         statusBar()->showMessage(statuBarMessage,0);
@@ -179,11 +185,16 @@ void MainWindow::export_to_csv(){
             fileHeader.append("; wartość całki");
         }
         if(exportRawData){
-            fileHeader.append("; przebieg średniego ciśnienia");
+            fileHeader.append("; P(t)");
+        }
+        if(exportDerivative){
+            fileHeader.append("; dP/dt");
         }
         csv_out << fileHeader << endl;
-        QByteArray qBA;
+        QByteArray qBA_pressHist;
+        QByteArray qBA_derivative;
         std::vector<double> pressure_history;
+        std::vector<double> pressure_derivative;
         while(query.next()){
             shield = query.value(0).toInt();
             begin_time = query.value(1).toLongLong();
@@ -206,22 +217,35 @@ void MainWindow::export_to_csv(){
                 std::replace( integral_string.begin(), integral_string.end(), '.', ',');
                 line.append(integral_string.c_str());
             }
-            int byte_array_size;
+            int byte_array_size_press;
+            double derivative_subsum=0;
+            int byte_array_size_deriv;
             double tmp;
-            std::cout << "Entries = " << stoppage_entries << ", entry size = " << sizeof(tmp) << std::endl;
-            if(exportRawData){
-                qBA = query.value(5).toByteArray();
-                byte_array_size = qBA.size();
-                std::cout << "BLOB size: " << byte_array_size << std::endl;
-                if (byte_array_size/sizeof(tmp) == stoppage_entries)
+            //std::cout << "Entries = " << stoppage_entries << ", entry size = " << sizeof(tmp) << std::endl;
+            if(exportRawData || exportDerivative){
+                qBA_pressHist = query.value(5).toByteArray();
+                qBA_derivative = query.value(6).toByteArray();
+                byte_array_size_press = qBA_pressHist.size();
+                byte_array_size_deriv = qBA_derivative.size();
+                //std::cout << "pressure BLOB size: " << byte_array_size_press << " derivative BLOB size: " << byte_array_size_deriv << std::endl;
+                if (byte_array_size_press/sizeof(tmp) == stoppage_entries && byte_array_size_deriv/sizeof(tmp) == stoppage_entries-1)
                 {
-                    std::cout << "Read BLOB" <<std::endl;
+                    //std::cout << "Read BLOB" <<std::endl;
                     for (int i=0; i< stoppage_entries; i++){
-                        tmp = *reinterpret_cast<const double*>(qBA.data());
+                        tmp = *reinterpret_cast<const double*>(qBA_pressHist.data());
                         //std::cout << "Extracted data: " << tmp << std::endl;
-                        qBA.remove(0,8);
+                        qBA_pressHist.remove(0,8);
                         pressure_history.push_back(tmp);
                     }
+                    for (int i=0; i< stoppage_entries-1; i++){
+                        tmp = *reinterpret_cast<const double*>(qBA_derivative.data());
+                        //std::cout << "Extracted data: " << tmp << std::endl;
+                        qBA_derivative.remove(0,8);
+                        pressure_derivative.push_back(tmp);
+                    }
+                    if(exportRawData){
+                        //std::cout << "   export Raw Data" <<std::endl;
+                        line.append("; P(t) ");
                     for (unsigned int i =0; i< pressure_history.size();i++){
                         if(i%intervalCounter==0){
                             line.append("; ");
@@ -229,7 +253,21 @@ void MainWindow::export_to_csv(){
                             std::replace( pressure_string.begin(), pressure_string.end(), '.', ',');
                             line.append(pressure_string.c_str());
                         }
-
+                    }
+                    }
+                    if(exportDerivative){
+                        //std::cout << "   export Derivative" <<std::endl;
+                        line.append("; dP/dt");
+                    for (unsigned int i = 0; i< pressure_derivative.size();i++){
+                        derivative_subsum+=pressure_derivative[i];
+                        if(i%intervalCounter==0 ){
+                            line.append("; ");
+                            std::string deriv_string = std::to_string(derivative_subsum/(double)intervalCounter);
+                            std::replace( deriv_string.begin(), deriv_string.end(), '.', ',');
+                            line.append(deriv_string.c_str());
+                            derivative_subsum=0;
+                        }
+                    }
                     }
                 } else
                 {
@@ -240,6 +278,7 @@ void MainWindow::export_to_csv(){
             csv_out << line << endl;
             line.clear();
             pressure_history.clear();
+            pressure_derivative.clear();
         }
     }
 }

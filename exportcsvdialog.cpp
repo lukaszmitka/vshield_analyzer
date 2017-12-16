@@ -7,8 +7,12 @@ ExportCSVDialog::ExportCSVDialog()
     integralCheckBox = new QCheckBox(tr("Wartość obliczonej całki"));
     integralCheckBox->setChecked(true);
 
+    derivativeCheckBox = new QCheckBox(tr("Wartość pochodnej"));
+    derivativeCheckBox->setChecked(false);
+    connect(derivativeCheckBox, SIGNAL(toggled(bool)), this, SLOT(set_active_interval_spinBox(bool)));
     rawDataCheckBox = new QCheckBox(tr("Dane surowe"));
-    connect(rawDataCheckBox, SIGNAL(toggled(bool)), this, SLOT(set_active_raw_data(bool)));
+    rawDataCheckBox->setChecked(false);
+    connect(rawDataCheckBox, SIGNAL(toggled(bool)), this, SLOT(set_active_interval_spinBox(bool)));
 
     intervalLabel = new QLabel(tr("Interwał pomiędzy wpisami (sekundy)"));
     intervalSpinBox = new QSpinBox();
@@ -21,6 +25,8 @@ ExportCSVDialog::ExportCSVDialog()
 
     checkBoxesLayout = new QVBoxLayout();
     checkBoxesLayout->addWidget(integralCheckBox);
+    checkBoxesLayout->addSpacing(12);
+    checkBoxesLayout->addWidget(derivativeCheckBox);
     checkBoxesLayout->addSpacing(12);
     checkBoxesLayout->addWidget(rawDataCheckBox);
 
@@ -50,8 +56,8 @@ ExportCSVDialog::ExportCSVDialog()
     setLayout(mainLayout);
 }
 
-void ExportCSVDialog::set_active_raw_data(bool active){
-    if(active){
+void ExportCSVDialog::set_active_interval_spinBox(bool active){
+    if(derivativeCheckBox->isChecked() || rawDataCheckBox->isChecked()){
         intervalSpinBox->setEnabled(true);
     } else {
         intervalSpinBox->setDisabled(true);
@@ -61,5 +67,12 @@ void ExportCSVDialog::set_active_raw_data(bool active){
 void ExportCSVDialog::getDataToProcess(bool *integral, bool *rawData, int *interval){
     *integral = integralCheckBox->isChecked();
     *rawData = rawDataCheckBox->isChecked();
+    *interval = intervalSpinBox->value();
+}
+
+void ExportCSVDialog::getDataToProcess(bool *integral, bool *rawData, bool *derivative, int *interval){
+    *integral = integralCheckBox->isChecked();
+    *rawData = rawDataCheckBox->isChecked();
+    *derivative = derivativeCheckBox->isChecked();
     *interval = intervalSpinBox->value();
 }
