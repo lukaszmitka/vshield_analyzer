@@ -46,7 +46,9 @@ private:
     void process_VShieldFiles(QStringList files, QSqlQuery sqlQuery);
     int calculate_pressure_integral(int shield_id);
     int insertPressureIntegral(int shield, long long begin_time, long long end_time, double integral, std::vector<double> pressure_history,  std::vector<double> derivative);
-
+    long getCoalLine(int shieldNo, long long time);
+    long getCoalLineRaw(int shieldNo, long long time);
+    double getCoalLineMeters(int shieldNo, long long time);
     //enum shield_params;
     enum shield_params{
         press_1 = 1,
@@ -81,7 +83,9 @@ private:
     QString db_file;
     QSqlDatabase db;
     QSqlQuery query;
+    QSqlQuery coal_line_query;
     QSqlQuery pressure_index_query;
+    QString coal_line_query_text;
     const static int DATABASE_APP_ID = 700612650;
     VShieldReader *vShieldReader;
     bool db_selected = false;

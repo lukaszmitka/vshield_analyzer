@@ -174,13 +174,14 @@ void MainWindow::export_to_csv(){
         select_query.append("SELECT * FROM pressure_index;");
         //std::cout << "Executing query" << std::endl;
         query.exec(select_query);
-        int shield;
+        long shield;
         long long begin_time;
         long long end_time;
         float pressure_integral;
         int stoppage_entries;
+        double coalLine;
         QString fileHeader;
-        fileHeader.append("Numer obudowy; początek przestoju; koniec przestoju");
+        fileHeader.append("Numer obudowy; początek przestoju; koniec przestoju; linia węgla [m]");
         if(exportIntegral){
             fileHeader.append("; wartość całki");
         }
@@ -202,6 +203,8 @@ void MainWindow::export_to_csv(){
             pressure_integral = query.value(3).toFloat();
             stoppage_entries = query.value(4).toInt();
 
+            coalLine = getCoalLineMeters(shield, begin_time);
+
             QDateTime dateTime;
             QString line;
             line.append(std::to_string(shield).c_str());
@@ -211,6 +214,8 @@ void MainWindow::export_to_csv(){
             line.append("; ");
             dateTime.setMSecsSinceEpoch(end_time);
             line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
+            line.append("; ");
+            line.append(std::to_string(coalLine).c_str());
             if(exportIntegral){
                 line.append("; ");
                 std::string integral_string = std::to_string(pressure_integral);
@@ -282,6 +287,33 @@ void MainWindow::export_to_csv(){
         }
     }
 }
+
+long MainWindow::getCoalLine(int shieldNo, long long time){
+    coal_line_query = QSqlQuery(db);
+    coal_line_query_text.clear();
+    coal_line_query_text.append("SELECT * FROM states WHERE time = '");
+    coal_line_query_text.append(std::to_string(time).c_str());
+    coal_line_query_text.append("' AND shield = '");
+    coal_line_query_text.append(std::to_string(shieldNo).c_str());
+    coal_line_query_text.append("';");
+    if(coal_line_query.exec(coal_line_query_text)){
+        if(coal_line_query.isSelect()){
+            if(coal_line_query.first()){
+                return coal_line_query.value(5).toLongLong();
+            }
+        }
+    }
+    return 0;
+}
+
+long MainWindow::getCoalLineRaw(int shieldNo, long long time){
+    return getCoalLine(shieldNo, time);
+}
+
+double MainWindow::getCoalLineMeters(int shieldNo, long long time){
+    return ((double)getCoalLineRaw(shieldNo, time))/1000;
+}
+
 
 void MainWindow::clear_index_table(){
     QString clear_query;
