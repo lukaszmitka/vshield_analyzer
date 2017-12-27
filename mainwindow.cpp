@@ -180,16 +180,21 @@ void MainWindow::export_to_csv(){
         float pressure_integral;
         int stoppage_entries;
         double coalLine;
+        long long stoppage_duration;
         QString fileHeader;
-        fileHeader.append("Numer obudowy; początek przestoju; koniec przestoju; linia węgla [m]");
+        fileHeader.append("Numer obudowy; początek przestoju; koniec przestoju; czas przestoju [minuty]; linia węgla [m]");
         if(exportIntegral){
             fileHeader.append("; wartość całki");
         }
         if(exportRawData){
-            fileHeader.append("; P(t)");
+            fileHeader.append("; P(t) (interwał ");
+            fileHeader.append(std::to_string((float)interval/60).c_str());
+            fileHeader.append(" minut)");
         }
         if(exportDerivative){
-            fileHeader.append("; dP/dt");
+            fileHeader.append("; dP/dt (interwał ");
+            fileHeader.append(std::to_string((float)interval/60).c_str());
+            fileHeader.append(" minut)");
         }
         csv_out << fileHeader << endl;
         QByteArray qBA_pressHist;
@@ -214,6 +219,9 @@ void MainWindow::export_to_csv(){
             line.append("; ");
             dateTime.setMSecsSinceEpoch(end_time);
             line.append(dateTime.toString("dd.MM.yyyy hh:mm:ss").toLocal8Bit());
+            line.append("; ");
+            stoppage_duration = (long long((long long)(end_time - begin_time))/((long long)60000));
+            line.append(std::to_string(stoppage_duration).c_str());
             line.append("; ");
             line.append(std::to_string(coalLine).c_str());
             if(exportIntegral){
