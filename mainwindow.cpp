@@ -182,6 +182,16 @@ void MainWindow::export_to_csv(){
         double coalLine;
         long long stoppage_duration;
         QString fileHeader;
+        if(exportDerivative){
+            fileHeader.append("Przebieg pochodnej ciśnienia zapisany jest w jednej linii, poprzedzony jest wpisem 'dP/dt'");
+            csv_out << fileHeader << endl;
+            fileHeader.clear();
+        }
+        if(exportRawData){
+            fileHeader.append("Przebieg ciśnienia zapisany jest w jednej linii, poprzedzony jest wpisem 'P(t)'");
+            csv_out << fileHeader << endl;
+            fileHeader.clear();
+        }
         fileHeader.append("Numer obudowy; początek przestoju; koniec przestoju; czas przestoju [minuty]; linia węgla [m]");
         if(exportIntegral){
             fileHeader.append("; wartość całki");
