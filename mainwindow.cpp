@@ -542,13 +542,13 @@ void MainWindow::shieldClicked(QListWidgetItem* item){
 
     ui->customPlot->addGraph(ui->customPlot->xAxis, ui->customPlot->yAxis2);
     i = ui->customPlot->graphCount()-1;
-    ui->customPlot->graph(i)->setData(time, suppPos);
+    ui->customPlot->graph(i)->setData(time, ramstroke);
     ui->customPlot->graph(i)->setProperty("ID",QVariant(shield_id));
-    ui->customPlot->graph(i)->setName("Pozycja obudowy");
+    ui->customPlot->graph(i)->setName("Wysuw siłownika");
     pen.setColor(QColor(0, 0, 255));
     ui->customPlot->graph()->setPen(pen);
 
-    ui->customPlot->yAxis2->setRange(suppPos[0]-10, suppPos[suppPos.size()-1]+10);
+    ui->customPlot->yAxis2->setRange(0, 300); //ramstroke[0]-10, ramstroke[ramstroke.size()-1]+10);
 
     /*ui->customPlot->addGraph();
     i = ui->customPlot->graphCount()-1;
@@ -768,6 +768,8 @@ int  MainWindow::calculate_pressure_integral(int shield_id){
     double time_diff; // minutes
     double support_begin_pos; // minutes
     double support_end_pos; // minutes
+    double ramstroke_begin; // milimeters (PL: wysuw słownika)
+    double ramstroke_current; // milimeters (PL: wysuw słownika)
     bool new_stay = true;
     long long raw_begin_timestamp;
     long long raw_end_timestamp;
@@ -791,19 +793,22 @@ int  MainWindow::calculate_pressure_integral(int shield_id){
     select_query.append("SELECT * FROM states WHERE shield=");
     select_query.append(QString::number(shield_id));
     select_query.append(";");
-    //std::cout << "Executing query" << std::endl;
+    std::cout << "Executing query" << std::endl;
     query.exec(select_query);
-    //std::cout << "Processing query" << std::endl;
+    std::cout << "Processing query" << std::endl;
     while(query.next()){
         if(new_stay){
             new_stay = false;
             stay_begin_timestamp = query.value(0).toDouble()/(60*1000);
             raw_begin_timestamp = query.value(0).toLongLong();
+            ramstroke_begin = query.value(4).toLongLong();
+            ramstroke_current = query.value(4).toLongLong();
             support_begin_pos = (query.value(6).toDouble()/1000);
             support_end_pos = (query.value(6).toDouble()/1000);
             time_diff = 0;
+            std::cout << "timestamp " << raw_begin_timestamp << ", ramstroke begin: " << ramstroke_begin << ", suppotr pos: " << support_begin_pos << std::endl;
         } else {
-            if(support_end_pos==support_begin_pos)
+            if(support_end_pos==support_begin_pos ) //&& ramstroke_begin==ramstroke_current)
             {
                 avg_pressure.push_back((query.value(2).toDouble()+query.value(3).toDouble())/20);
                 time.push_back(time_diff);
@@ -832,9 +837,12 @@ int  MainWindow::calculate_pressure_integral(int shield_id){
                     }
                 }
                 support_end_pos = (query.value(6).toDouble()/1000);
+                ramstroke_current = query.value(4).toLongLong();
                 stay_end_timestamp = query.value(0).toDouble()/(60*1000);
                 raw_end_timestamp = query.value(0).toLongLong();
                 time_diff = (stay_end_timestamp - stay_begin_timestamp);
+                std::cout << "timestamp " << raw_end_timestamp << ", ramstroke current: " << ramstroke_current << ", support end pos: " << support_end_pos << std::endl;
+
             } else {
                 //std::cout << "Support pos change" << support_end_pos <<  std::endl;
                 new_stay = true;
@@ -1117,6 +1125,11 @@ bool MainWindow::open_database(QString database_name, bool init){
             std::cout << "Table pressure_index was created" << std::endl;
         } else {
             std::cout << "Error 4" << std::endl;
+        }
+        if(query.exec("CREATE TABLE compressive_strength(coal_line_begin INT, coal_line_end INT, strength INT);")){
+            std::cout << "Table compressive_strength was created" << std::endl;
+        } else {
+            std::cout << "Error 5" << std::endl;
         }
     }
     if(check_db_integrity(db)){

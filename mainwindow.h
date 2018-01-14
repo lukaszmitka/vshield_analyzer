@@ -9,6 +9,7 @@
 #include "staytimedialog.h"
 #include "vshieldanalyzerworker.h"
 #include "vshieldprogressdialog.h"
+#include "compressivestrengthdialog.h"
 #include <QFileDialog>
 #include <QTextCodec>
 #include <QString>
@@ -86,7 +87,7 @@ private:
     QSqlQuery coal_line_query;
     QSqlQuery pressure_index_query;
     QString coal_line_query_text;
-    const static int DATABASE_APP_ID = 700612650;
+    const static int DATABASE_APP_ID = 700612651;
     VShieldReader *vShieldReader;
     bool db_selected = false;
     bool vshield_selected = false;

@@ -30,7 +30,8 @@ SOURCES += main.cpp\
     indexedqcheckbox.cpp \
     vshieldanalyzerworker.cpp \
     vshieldprogressdialog.cpp \
-    exportcsvdialog.cpp
+    exportcsvdialog.cpp \
+    compressivestrengthdialog.cpp
 
 HEADERS  += mainwindow.h \
     vshieldreader.h \
@@ -43,6 +44,7 @@ HEADERS  += mainwindow.h \
     indexedqcheckbox.h \
     vshieldanalyzerworker.h \
     vshieldprogressdialog.h \
-    exportcsvdialog.h
+    exportcsvdialog.h \
+    compressivestrengthdialog.h
 
 FORMS    += mainwindow.ui
