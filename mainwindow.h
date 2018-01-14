@@ -81,6 +81,7 @@ private:
     QAction *qAction_press_index;
     QAction *qAction_export;
     QAction *qAction_clear_pressure_table;
+    QAction *qAction_get_compressive_strengths;
     QString db_file;
     QSqlDatabase db;
     QSqlQuery query;
@@ -94,6 +95,7 @@ private:
 private slots:
     void dialogGetPressureLimits();
     void dialogGetStayTime();
+    void dialogGetCompressiveStrengths();
     void determinePressureIndex();
     //void vShieldAnalyze();
     void openVShieldFile();

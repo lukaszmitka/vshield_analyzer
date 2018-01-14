@@ -5,6 +5,7 @@ CompressiveStrengthDialog::CompressiveStrengthDialog()
 
 }
 
-void CompressiveStrengthDialog::getCompressiveStrengths(std::vector<double> *strengths){
-
+std::vector<double> CompressiveStrengthDialog::getCompressiveStrengths(){
+    std::vector<double> strengths;
+    return strengths;
 }

@@ -10,9 +10,10 @@
 
 class CompressiveStrengthDialog : public QDialog
 {
+    Q_OBJECT
 public:
     CompressiveStrengthDialog();
-    void getCompressiveStrengths(std::vector<double> *strengths);
+    std::vector<double> getCompressiveStrengths();
 };
 
 #endif // COMPRESSIVESTRENGTHDIALOG_H

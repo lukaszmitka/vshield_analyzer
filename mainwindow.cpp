@@ -87,6 +87,10 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     qAction_press_index->setStatusTip("Oblicza wskaźnik przyrostu ciśnienia dla określonych sekcji");
     connect(qAction_press_index, SIGNAL(triggered()), this, SLOT(determinePressureIndex()));
 
+    qAction_get_compressive_strengths = new QAction(tr("Określ odporność na ściskanie"), this);
+    qAction_get_compressive_strengths->setStatusTip("Pozwala określić odporność skał na ściskanie na danym obszarze");
+    connect(qAction_get_compressive_strengths, SIGNAL(triggered()), this, SLOT(dialogGetCompressiveStrengths()));
+
     qAction_export = new QAction(tr("Eksport do pliku csv"), this);
     qAction_export->setStatusTip("Eksportuje obliczone wskaźniki ciśnienia do pliku .csv (Do obróbki w Excelu lub Matlabie");
     connect(qAction_export, SIGNAL(triggered()), this, SLOT(export_to_csv()));
@@ -108,6 +112,7 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     fileMenu->addAction(qAction_pressure_limit);
     fileMenu->addAction(qAction_stay_time);
     fileMenu->addAction(qAction_press_index);
+    fileMenu->addAction(qAction_get_compressive_strengths);
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_export);
     fileMenu->addAction(qAction_clear_pressure_table);
@@ -731,6 +736,13 @@ void MainWindow::dialogGetStayTime(){
         statusBarMessage.append(", maksymalny czas postoju: ");
         statusBarMessage.append(QString::number(max_stay_time));
         statusBar()->showMessage(statusBarMessage,0);
+    }
+}
+
+void MainWindow::dialogGetCompressiveStrengths(){
+    CompressiveStrengthDialog compressStrDlg;
+    if(compressStrDlg.exec()){
+        std::vector<double> s = compressStrDlg.getCompressiveStrengths();
     }
 }
 
