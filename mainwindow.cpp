@@ -274,28 +274,28 @@ void MainWindow::export_to_csv(){
                     if(exportRawData){
                         //std::cout << "   export Raw Data" <<std::endl;
                         line.append("; P(t) ");
-                    for (unsigned int i =0; i< pressure_history.size();i++){
-                        if(i%intervalCounter==0){
-                            line.append("; ");
-                            std::string pressure_string = std::to_string(pressure_history[i]);
-                            std::replace( pressure_string.begin(), pressure_string.end(), '.', ',');
-                            line.append(pressure_string.c_str());
+                        for (unsigned int i =0; i< pressure_history.size();i++){
+                            if(i%intervalCounter==0){
+                                line.append("; ");
+                                std::string pressure_string = std::to_string(pressure_history[i]);
+                                std::replace( pressure_string.begin(), pressure_string.end(), '.', ',');
+                                line.append(pressure_string.c_str());
+                            }
                         }
-                    }
                     }
                     if(exportDerivative){
                         //std::cout << "   export Derivative" <<std::endl;
                         line.append("; dP/dt");
-                    for (unsigned int i = 0; i< pressure_derivative.size();i++){
-                        derivative_subsum+=pressure_derivative[i];
-                        if(i%intervalCounter==0 ){
-                            line.append("; ");
-                            std::string deriv_string = std::to_string(derivative_subsum/(double)intervalCounter);
-                            std::replace( deriv_string.begin(), deriv_string.end(), '.', ',');
-                            line.append(deriv_string.c_str());
-                            derivative_subsum=0;
+                        for (unsigned int i = 0; i< pressure_derivative.size();i++){
+                            derivative_subsum+=pressure_derivative[i];
+                            if(i%intervalCounter==0 ){
+                                line.append("; ");
+                                std::string deriv_string = std::to_string(derivative_subsum/(double)intervalCounter);
+                                std::replace( deriv_string.begin(), deriv_string.end(), '.', ',');
+                                line.append(deriv_string.c_str());
+                                derivative_subsum=0;
+                            }
                         }
-                    }
                     }
                 } else
                 {
@@ -730,7 +730,6 @@ void MainWindow::dialogGetStayTime(){
     StayTimeDialog stayTimeDlg(min_stay_time, max_stay_time);
     if(stayTimeDlg.exec()){
         stayTimeDlg.getStayTime(&min_stay_time, &max_stay_time);
-
         QString statusBarMessage("Minimalny czas postoju: ");
         statusBarMessage.append(QString::number(min_stay_time));
         statusBarMessage.append(", maksymalny czas postoju: ");
@@ -739,10 +738,66 @@ void MainWindow::dialogGetStayTime(){
     }
 }
 
+/**
+ * @brief MainWindow::dialogGetCompressiveStrengths
+ */
 void MainWindow::dialogGetCompressiveStrengths(){
-    CompressiveStrengthDialog compressStrDlg;
-    if(compressStrDlg.exec()){
-        std::vector<double> s = compressStrDlg.getCompressiveStrengths();
+
+    /*    SQLite query for selecting shield
+       select_query.append("SELECT * FROM states WHERE shield=");
+       select_query.append(QString::number(shield_id));
+       select_query.append(";");
+       std::cout << "Executing query" << std::endl;
+       query.exec(select_query);
+       std::cout << "Processing query" << std::endl;
+       while(query.next()){
+           if(new_stay){
+               new_stay = false;
+               stay_begin_timestamp = query.value(0).toDouble()/(60*1000);
+               raw_begin_timestamp = query.value(0).toLongLong();
+               ramstroke_begin = query.value(4).toLongLong();
+               ramstroke_current = query.value(4).toLongLong();
+               support_begin_pos = (query.value(6).toDouble()/1000);
+               support_end_pos = (query.value(6).toDouble()/1000);
+               time_diff = 0;
+               */
+    QString select_query = "SELECT * FROM compressive_strength;";
+    CompressiveStrengthDialog *compressStrDlg;
+
+    std::cout << "Select query: " << select_query.toLocal8Bit().data() << std::endl;
+    query.exec(select_query);
+    //if(query.size()>0){
+        single_entry tmp_entry;
+        std::vector<single_entry> current_data;
+        while(query.next()){
+            std::cout << "add entry to initial data" << std::endl;
+            tmp_entry.begin = query.value(0).toInt();
+            tmp_entry.end = query.value(1).toInt();
+            tmp_entry.strength = query.value(2).toInt();
+            current_data.push_back(tmp_entry);
+        }
+        compressStrDlg = new CompressiveStrengthDialog(current_data);
+    /*} else {
+        std::cout << "query size 0" << std::endl;
+        compressStrDlg = new CompressiveStrengthDialog;
+    }*/
+
+    if(compressStrDlg->exec()){
+        std::vector<single_entry> strengths = compressStrDlg->getCompressiveStrengths();
+        QString insert_query;
+        for(int i=0; i<strengths.size(); i++){
+            insert_query.clear();
+            insert_query.append("INSERT INTO compressive_strength VALUES (");
+            insert_query.append(QString::number(strengths[i].begin)).append(", ");
+            insert_query.append(QString::number(strengths[i].end)).append(", ");
+            insert_query.append(QString::number(strengths[i].strength)).append(");");
+            std::cout << "query to insert: " << insert_query.toLocal8Bit().data() << std::endl;
+            if(query.exec(insert_query)){
+                std::cout << "Data inserted succesfully" << std::endl;
+            } else {
+                std::cout << "Error while insterting data" << std::endl;
+            }
+        }
     }
 }
 
@@ -1138,7 +1193,7 @@ bool MainWindow::open_database(QString database_name, bool init){
         } else {
             std::cout << "Error 4" << std::endl;
         }
-        if(query.exec("CREATE TABLE compressive_strength(coal_line_begin INT, coal_line_end INT, strength INT);")){
+        if(query.exec("CREATE TABLE compressive_strength(coal_line_begin INTEGER PRIMARY KEY, coal_line_end INTEGER, strength INTEGER);")){
             std::cout << "Table compressive_strength was created" << std::endl;
         } else {
             std::cout << "Error 5" << std::endl;

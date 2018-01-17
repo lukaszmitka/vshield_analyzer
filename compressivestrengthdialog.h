@@ -14,12 +14,19 @@
 #define COAL_LINE_COLUMN_WIDTH 80
 #define STRENGTH_COLUMN_WIDTH 80
 
+struct single_entry{
+    int begin;
+    int end;
+    int strength;
+};
+
 class CompressiveStrengthDialog : public QDialog
 {
     Q_OBJECT
 public:
     CompressiveStrengthDialog();
-    std::vector<double> getCompressiveStrengths();
+    CompressiveStrengthDialog(std::vector<single_entry> current_data);
+    std::vector<single_entry> getCompressiveStrengths();
 private:
     QVBoxLayout *mainLayout;
     QLabel *min_coalLineLabel;
@@ -37,6 +44,7 @@ private:
     QVector<QSpinBox*> minSpinBoxes;
     QVector<QSpinBox*> maxSpinBoxes;
     QVector<QSpinBox*> compressionStrengths;
+    void init_layout();
     void addNewEntry();
     void removeLastEntry();
     //void initHeader();
@@ -45,6 +53,8 @@ private:
     void initFooter();
     bool verify_data();
     bool verify_single_field(int row, int col);
+    single_entry read_single_entry(int row);
+
 
     QTableWidget* qTableWidget;
     QStringList qTableHeader;
