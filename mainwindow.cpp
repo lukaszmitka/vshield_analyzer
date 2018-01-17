@@ -766,23 +766,23 @@ void MainWindow::dialogGetCompressiveStrengths(){
 
     std::cout << "Select query: " << select_query.toLocal8Bit().data() << std::endl;
     query.exec(select_query);
-    //if(query.size()>0){
-        single_entry tmp_entry;
-        std::vector<single_entry> current_data;
-        while(query.next()){
-            std::cout << "add entry to initial data" << std::endl;
-            tmp_entry.begin = query.value(0).toInt();
-            tmp_entry.end = query.value(1).toInt();
-            tmp_entry.strength = query.value(2).toInt();
-            current_data.push_back(tmp_entry);
-        }
-        compressStrDlg = new CompressiveStrengthDialog(current_data);
-    /*} else {
-        std::cout << "query size 0" << std::endl;
-        compressStrDlg = new CompressiveStrengthDialog;
-    }*/
+    single_entry tmp_entry;
+    std::vector<single_entry> current_data;
+    while(query.next()){
+        std::cout << "add entry to initial data" << std::endl;
+        tmp_entry.begin = query.value(0).toInt();
+        tmp_entry.end = query.value(1).toInt();
+        tmp_entry.strength = query.value(2).toInt();
+        current_data.push_back(tmp_entry);
+    }
+    compressStrDlg = new CompressiveStrengthDialog(current_data);
 
     if(compressStrDlg->exec()){
+        // clear current values from table
+        QString clear_query = "DELETE FROM compressive_strength;";
+        query.exec(clear_query);
+
+        // insert new values into table
         std::vector<single_entry> strengths = compressStrDlg->getCompressiveStrengths();
         QString insert_query;
         for(int i=0; i<strengths.size(); i++){
