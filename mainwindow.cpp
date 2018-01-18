@@ -132,13 +132,50 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
 }
 
 void MainWindow::dialogSetDayShifBeginTime(){
+    int default_day_begin_time = 6;
+    int tmp = get_dayBeginTime_From_DB();
+    if(tmp>=0){
+        default_day_begin_time=tmp;
+    }
     bool ok;
     int day_begin = QInputDialog::getInt(this, tr("Określ godzinę rozpoczęcia dnia"),
-                                         tr("Wartość będzie brana pod uwagę podczas obliczania dziennych statystyk."), 6, 0, 24, 1, &ok);
+                                         tr("Wartość będzie brana pod uwagę podczas obliczania dziennych statystyk."), default_day_begin_time, 0, 24, 1, &ok);
     if(ok){
         std::cout << "Wybrana godzina: " << day_begin << std::endl;
+        update_dayBeginTimeInDB(day_begin);
     }
 }
+
+/**
+ * @brief MainWindow::get_dayBeginTime_From_DB Retrieve day begin time from database.
+ * @return Hour of selected day shif begin as hour between 0 and 23, -1 if error or unset.
+ */
+int MainWindow::get_dayBeginTime_From_DB(){
+    int day_begin_time = -1;
+    QString select_query = "SELECT * FROM app_config WHERE param = 'DAY_BEGIN_TIME';";
+    if(query.exec(select_query)){
+        if(query.next()){
+            day_begin_time = query.value(1).toInt();
+            std::cout << "Time from db: " << day_begin_time << std::endl;
+        }
+    }
+    return day_begin_time;
+}
+
+void MainWindow::update_dayBeginTimeInDB(int dayBeginTime){
+    if (dayBeginTime>=0 && dayBeginTime<=24){
+        if (dayBeginTime==24){
+            dayBeginTime=0;
+        }
+        QString update_query = "UPDATE app_config SET value = '";
+        update_query.append(QString::number(dayBeginTime));
+        update_query.append("' WHERE param = 'DAY_BEGIN_TIME';");
+        if(query.exec(update_query)){
+            std::cout << "Updated day begin time" << std::endl;
+        }
+    }
+}
+
 
 void MainWindow::export_to_csv(){
     bool exportIntegral;

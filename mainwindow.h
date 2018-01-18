@@ -50,6 +50,8 @@ private:
     long getCoalLine(int shieldNo, long long time);
     long getCoalLineRaw(int shieldNo, long long time);
     double getCoalLineMeters(int shieldNo, long long time);
+    int get_dayBeginTime_From_DB();
+    void update_dayBeginTimeInDB(int dayBeginTime);
     //enum shield_params;
     enum shield_params{
         press_1 = 1,
