@@ -82,6 +82,7 @@ private:
     QAction *qAction_export;
     QAction *qAction_clear_pressure_table;
     QAction *qAction_get_compressive_strengths;
+    QAction *qAction_set_day_shift_begin_time;
     QString db_file;
     QSqlDatabase db;
     QSqlQuery query;
@@ -106,6 +107,7 @@ private slots:
     void shieldClicked(QListWidgetItem* item);
     void export_to_csv();
     void clear_index_table();
+    void dialogSetDayShifBeginTime();
 };
 
 #endif // MAINWINDOW_H

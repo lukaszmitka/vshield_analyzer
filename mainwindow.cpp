@@ -99,7 +99,9 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     qAction_clear_pressure_table->setStatusTip("Usuwa wpisy z tabeli wskaźników ciśnienia");
     connect(qAction_clear_pressure_table, SIGNAL(triggered()), this, SLOT(clear_index_table()));
 
-
+    qAction_set_day_shift_begin_time = new QAction(tr("Określ godzinę rozpoczęcia dnia"));
+    qAction_set_day_shift_begin_time->setStatusTip("Określa godzinę według której obliczany jest dzienny postęp ściany i wskaźnik przyrostu ciśnienia.");
+    connect(qAction_set_day_shift_begin_time, SIGNAL(triggered()), this, SLOT(dialogSetDayShifBeginTime()));
 
     fileMenu = menuBar()->addMenu(tr("&Plik"));
     fileMenu->addAction(qAction_select_existing_db);
@@ -112,7 +114,9 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     fileMenu->addAction(qAction_pressure_limit);
     fileMenu->addAction(qAction_stay_time);
     fileMenu->addAction(qAction_press_index);
+    fileMenu->addSeparator();
     fileMenu->addAction(qAction_get_compressive_strengths);
+    fileMenu->addAction(qAction_set_day_shift_begin_time);
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_export);
     fileMenu->addAction(qAction_clear_pressure_table);
@@ -125,6 +129,15 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
 
     vShieldReader = new VShieldReader();
     //QCoreApplication.addLibraryPath(".");
+}
+
+void MainWindow::dialogSetDayShifBeginTime(){
+    bool ok;
+    int day_begin = QInputDialog::getInt(this, tr("Określ godzinę rozpoczęcia dnia"),
+                                         tr("Wartość będzie brana pod uwagę podczas obliczania dziennych statystyk."), 6, 0, 24, 1, &ok);
+    if(ok){
+        std::cout << "Wybrana godzina: " << day_begin << std::endl;
+    }
 }
 
 void MainWindow::export_to_csv(){
@@ -875,7 +888,7 @@ int  MainWindow::calculate_pressure_integral(int shield_id){
             time_diff = 0;
             std::cout << "timestamp " << raw_begin_timestamp << ", ramstroke begin: " << ramstroke_begin << ", suppotr pos: " << support_begin_pos << std::endl;
         } else {
-            if(support_end_pos==support_begin_pos ) //&& ramstroke_begin==ramstroke_current)
+            if(support_end_pos==support_begin_pos && ramstroke_begin>=(ramstroke_current-100))
             {
                 avg_pressure.push_back((query.value(2).toDouble()+query.value(3).toDouble())/20);
                 time.push_back(time_diff);
