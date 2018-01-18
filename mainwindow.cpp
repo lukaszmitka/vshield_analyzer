@@ -137,6 +137,63 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
 }
 
 void MainWindow::calculateWallProgress(){
+    QString select_min_query = "SELECT min(time) FROM states;";
+    QString select_max_query = "SELECT max(time) FROM states;";
+    QString insert_query;
+
+    int day_begin_time = get_dayBeginTime_From_DB();
+    if(day_begin_time==-1){
+        std::cout << "Error, day begin time not set" << std::endl;
+        return;
+    }
+    long long min_timestamp = 0;
+    long long max_timestamp = 0;
+    long long previous_timestamp = 0;
+    long long next_timestamp = 0;
+    if(query.exec(select_min_query)){
+        if(query.next()){
+            min_timestamp = query.value(0).toLongLong();
+        }
+    }
+    if(query.exec(select_max_query)){
+        if(query.next()){
+            max_timestamp = query.value(0).toLongLong();
+        }
+    }
+
+    if(min_timestamp != 0 && max_timestamp != 0){
+        if(min_timestamp < max_timestamp){
+            previous_timestamp = min_timestamp;
+            while (previous_timestamp<max_timestamp){
+                next_timestamp = get_nextDay(previous_timestamp, day_begin_time);
+                double progress = get_averageCoalLineProgress(previous_timestamp, next_timestamp);
+                std::cout << "Progress for time: " << previous_timestamp << "--" << next_timestamp << ": " << progress << std::endl;
+                insert_query.clear();
+                insert_query.append("INSERT INTO average_progress VALUES (");
+                insert_query.append(QString::number(previous_timestamp));
+                insert_query.append(", ");
+                insert_query.append(QString::number(next_timestamp));
+                insert_query.append(", ");
+                insert_query.append(QString::number(progress));
+                insert_query.append(");");
+                std::cout << "query to execute: " << insert_query.toLocal8Bit().data() << std::endl;
+                if(query.exec(insert_query)){
+                    std::cout << "Succesfullt inserted entry" << std::endl;
+                }
+                previous_timestamp = next_timestamp+1;
+            }
+        }
+    }
+}
+
+long long MainWindow::get_nextDay(long long timestamp, int dayBeginHour){
+    std::cout << "Received timestamp: " << timestamp << std::endl;
+    long long timestamp_raw = timestamp - ((long long) dayBeginHour * 60 * 60 * 1000);
+    long long full_days = timestamp_raw/(24* 60 * 60 * 1000);
+    full_days++;
+    timestamp_raw = (full_days*24* 60 * 60 * 1000) + ((long long) dayBeginHour * 60 * 60 * 1000);
+    std::cout << "Generated timestamp: " << timestamp_raw << std::endl;
+    return timestamp_raw;
 }
 
 void MainWindow::dialogSetDayShifBeginTime(){
@@ -1306,7 +1363,16 @@ bool MainWindow::open_database(QString database_name, bool init){
         } else {
             std::cout << "Error 6" << std::endl;
         }
-
+        if(query.exec("INSERT INTO app_config VALUES('DAY_BEGIN_TIME', 6);")){
+            std::cout << "Table app_config was created" << std::endl;
+        } else {
+            std::cout << "Error 6.1" << std::endl;
+        }
+        if(query.exec("CREATE TABLE average_progress(begin_time INTEGER PRIMARY KEY, end_time INTEGER, progress REAL);")){
+            std::cout << "Table average_progress was created" << std::endl;
+        } else {
+            std::cout << "Error 7" << std::endl;
+        }
     }
     if(check_db_integrity(db)){
         db_selected = true;
