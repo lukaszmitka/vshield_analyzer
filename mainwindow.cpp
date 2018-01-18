@@ -103,6 +103,10 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     qAction_set_day_shift_begin_time->setStatusTip("Określa godzinę według której obliczany jest dzienny postęp ściany i wskaźnik przyrostu ciśnienia.");
     connect(qAction_set_day_shift_begin_time, SIGNAL(triggered()), this, SLOT(dialogSetDayShifBeginTime()));
 
+    qAction_calculate_wall_progress = new QAction(tr("Oblicz średni postęp ściany"));
+    qAction_calculate_wall_progress->setStatusTip("Oblicza średni dzienny postęp ściany dla całego przebieguzapisanego w bazie.");
+    connect(qAction_calculate_wall_progress, SIGNAL(triggered()), this, SLOT(calculateWallProgress()));
+
     fileMenu = menuBar()->addMenu(tr("&Plik"));
     fileMenu->addAction(qAction_select_existing_db);
     fileMenu->addAction(qAction_create_db);
@@ -117,6 +121,7 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_get_compressive_strengths);
     fileMenu->addAction(qAction_set_day_shift_begin_time);
+    fileMenu->addAction(qAction_calculate_wall_progress);
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_export);
     fileMenu->addAction(qAction_clear_pressure_table);
@@ -129,6 +134,9 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
 
     vShieldReader = new VShieldReader();
     //QCoreApplication.addLibraryPath(".");
+}
+
+void MainWindow::calculateWallProgress(){
 }
 
 void MainWindow::dialogSetDayShifBeginTime(){
@@ -144,6 +152,51 @@ void MainWindow::dialogSetDayShifBeginTime(){
         std::cout << "Wybrana godzina: " << day_begin << std::endl;
         update_dayBeginTimeInDB(day_begin);
     }
+}
+
+/**
+ * @brief MainWindow::get_shieldCoalLineProgress Retrieve from database coal line progress in a given time.
+ * @param shieldID Shield for which progress should be received.
+ * @param beginTimestamp Beginning of the search period.
+ * @param endTimestamp End of the search period.
+ * @return Distance travelled by shield, expressed in meters.
+ */
+double MainWindow::get_shieldCoalLineProgress(int shieldID, long long beginTimestamp, long long endTimestamp){
+    QString select_query = "SELECT * FROM states WHERE shield = '";
+    select_query.append(QString::number(shieldID));
+    select_query.append("' AND time > '");
+    select_query.append(QString::number(beginTimestamp));
+    select_query.append("' AND time < '");
+    select_query.append(QString::number(endTimestamp));
+    select_query.append("';");
+    long long beginCoalLine;
+    long long endCoalLine;
+    std::cout << "Obliczenie postępu sekcji z zapytaniem: " << select_query.toLocal8Bit().data() << std::endl;
+    if (query.exec(select_query)){
+        if(query.next()){
+            beginCoalLine = query.value(5).toInt();
+        }
+        while (query.next()){
+            endCoalLine = query.value(5).toInt();
+        }
+    }
+    std::cout << "Wynik: " << ((double)(endCoalLine-beginCoalLine))/1000 << std::endl;
+    return ((double)(endCoalLine-beginCoalLine))/1000;
+}
+
+/**
+ * @brief MainWindow::get_averageCoalLineProgress Calculate average coal line progress in a given time.
+ * @param beginTimestamp Beginning of the search period.
+ * @param endTimestamp End of the search period.
+ * @return Average distance travelled by all shields, expressed in meters.
+ */
+double MainWindow::get_averageCoalLineProgress(long long beginTimestamp, long long endTimestamp){
+    double progress_sum = 0;
+    for (int i=1; i<=number_of_shields; i++){
+        progress_sum+=get_shieldCoalLineProgress(i, beginTimestamp, endTimestamp);
+    }
+    std::cout << "Średni postęp ściany dla zadanego przedziału czasowego: " << progress_sum/number_of_shields << std::endl;
+    return progress_sum/number_of_shields;
 }
 
 /**

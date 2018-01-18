@@ -52,6 +52,9 @@ private:
     double getCoalLineMeters(int shieldNo, long long time);
     int get_dayBeginTime_From_DB();
     void update_dayBeginTimeInDB(int dayBeginTime);
+    double get_shieldCoalLineProgress(int shieldID, long long beginTimestamp, long long endTimestamp);
+    double get_averageCoalLineProgress(long long beginTimestamp, long long endTimestamp);
+
     //enum shield_params;
     enum shield_params{
         press_1 = 1,
@@ -85,6 +88,7 @@ private:
     QAction *qAction_clear_pressure_table;
     QAction *qAction_get_compressive_strengths;
     QAction *qAction_set_day_shift_begin_time;
+    QAction *qAction_calculate_wall_progress;
     QString db_file;
     QSqlDatabase db;
     QSqlQuery query;
@@ -110,6 +114,7 @@ private slots:
     void export_to_csv();
     void clear_index_table();
     void dialogSetDayShifBeginTime();
+    void calculateWallProgress();
 };
 
 #endif // MAINWINDOW_H
