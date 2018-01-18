@@ -1211,6 +1211,12 @@ bool MainWindow::open_database(QString database_name, bool init){
         } else {
             std::cout << "Error 5" << std::endl;
         }
+        if(query.exec("CREATE TABLE app_config(param TEXT, value TEXT);")){
+            std::cout << "Table app_config was created" << std::endl;
+        } else {
+            std::cout << "Error 6" << std::endl;
+        }
+
     }
     if(check_db_integrity(db)){
         db_selected = true;
