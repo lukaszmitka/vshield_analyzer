@@ -171,6 +171,19 @@ void MainWindow::calculateAvgPressIndex(){
                 next_timestamp = get_nextDay(previous_timestamp, day_begin_time);
                 double avgPressInd = get_averagePressureIndex(previous_timestamp, next_timestamp);
                 previous_timestamp = next_timestamp+1;
+                insert_query.clear();
+                insert_query.append("INSERT INTO average_pressure_index VALUES (");
+                insert_query.append(QString::number(previous_timestamp));
+                insert_query.append(", ");
+                insert_query.append(QString::number(next_timestamp));
+                insert_query.append(", ");
+                insert_query.append(QString::number(avgPressInd));
+                insert_query.append(");");
+                std::cout << "query to execute: " << insert_query.toLocal8Bit().data() << std::endl;
+                if(query.exec(insert_query)){
+                    std::cout << "Succesfully inserted entry" << std::endl;
+                }
+
             }
         }
     }
@@ -1445,6 +1458,11 @@ bool MainWindow::open_database(QString database_name, bool init){
             std::cout << "Table average_progress was created" << std::endl;
         } else {
             std::cout << "Error 7" << std::endl;
+        }
+        if(query.exec("CREATE TABLE average_pressure_index(begin_time INTEGER PRIMARY KEY, end_time INTEGER, pressure_index REAL);")){
+            std::cout << "Table average_pressure_index was created" << std::endl;
+        } else {
+            std::cout << "Error 8" << std::endl;
         }
     }
     if(check_db_integrity(db)){
