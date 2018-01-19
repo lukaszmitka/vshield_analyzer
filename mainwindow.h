@@ -90,6 +90,7 @@ private:
     QAction *qAction_get_compressive_strengths;
     QAction *qAction_set_day_shift_begin_time;
     QAction *qAction_calculate_wall_progress;
+    QAction *qAction_calculate_avg_press_index;
     QString db_file;
     QSqlDatabase db;
     QSqlQuery query;
@@ -116,6 +117,7 @@ private slots:
     void clear_index_table();
     void dialogSetDayShifBeginTime();
     void calculateWallProgress();
+    void calculateAvgPressIndex();
 };
 
 #endif // MAINWINDOW_H

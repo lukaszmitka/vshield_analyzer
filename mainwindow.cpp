@@ -104,8 +104,12 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     connect(qAction_set_day_shift_begin_time, SIGNAL(triggered()), this, SLOT(dialogSetDayShifBeginTime()));
 
     qAction_calculate_wall_progress = new QAction(tr("Oblicz średni postęp ściany"));
-    qAction_calculate_wall_progress->setStatusTip("Oblicza średni dzienny postęp ściany dla całego przebieguzapisanego w bazie.");
+    qAction_calculate_wall_progress->setStatusTip("Oblicza średni dzienny postęp ściany dla całego przebiegu zapisanego w bazie.");
     connect(qAction_calculate_wall_progress, SIGNAL(triggered()), this, SLOT(calculateWallProgress()));
+
+    qAction_calculate_avg_press_index = new QAction(tr("Oblicz średni wskaźnik przyrostu ciśnienia"));
+    qAction_calculate_avg_press_index->setStatusTip("Oblicza średni dzienny wskaźnik przyrostu ciśnienia dla całego przebiegu zapisanego w bazie.");
+    connect(qAction_calculate_avg_press_index, SIGNAL(triggered()), this, SLOT(calculateAvgPressIndex()));
 
     fileMenu = menuBar()->addMenu(tr("&Plik"));
     fileMenu->addAction(qAction_select_existing_db);
@@ -118,6 +122,7 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     fileMenu->addAction(qAction_pressure_limit);
     fileMenu->addAction(qAction_stay_time);
     fileMenu->addAction(qAction_press_index);
+    fileMenu->addAction(qAction_calculate_avg_press_index);
     fileMenu->addSeparator();
     fileMenu->addAction(qAction_get_compressive_strengths);
     fileMenu->addAction(qAction_set_day_shift_begin_time);
@@ -134,6 +139,10 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
 
     vShieldReader = new VShieldReader();
     //QCoreApplication.addLibraryPath(".");
+}
+
+void MainWindow::calculateAvgPressIndex(){
+
 }
 
 void MainWindow::calculateWallProgress(){
