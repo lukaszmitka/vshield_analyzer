@@ -142,6 +142,38 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
 }
 
 void MainWindow::calculateAvgPressIndex(){
+    QString select_min_query = "SELECT min(end_time) FROM pressure_index;";
+    QString select_max_query = "SELECT max(end_time) FROM pressure_index;";
+    QString insert_query;
+    int day_begin_time = get_dayBeginTime_From_DB();
+    if(day_begin_time==-1){
+        std::cout << "Error, day begin time not set" << std::endl;
+        return;
+    }
+    long long min_timestamp = 0;
+    long long max_timestamp = 0;
+    long long previous_timestamp = 0;
+    long long next_timestamp = 0;
+    if(query.exec(select_min_query)){
+        if(query.next()){
+            min_timestamp = query.value(0).toLongLong();
+        }
+    }
+    if(query.exec(select_max_query)){
+        if(query.next()){
+            max_timestamp = query.value(0).toLongLong();
+        }
+    }
+    if(min_timestamp != 0 && max_timestamp != 0){
+        if(min_timestamp < max_timestamp){
+            previous_timestamp = min_timestamp;
+            while (previous_timestamp<max_timestamp){
+                next_timestamp = get_nextDay(previous_timestamp, day_begin_time);
+                // TODO calculate average pressure index here
+                previous_timestamp = next_timestamp+1;
+            }
+        }
+    }
 
 }
 
