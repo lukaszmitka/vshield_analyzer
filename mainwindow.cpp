@@ -169,13 +169,45 @@ void MainWindow::calculateAvgPressIndex(){
             previous_timestamp = min_timestamp;
             while (previous_timestamp<max_timestamp){
                 next_timestamp = get_nextDay(previous_timestamp, day_begin_time);
-                // TODO calculate average pressure index here
+                double avgPressInd = get_averagePressureIndex(previous_timestamp, next_timestamp);
                 previous_timestamp = next_timestamp+1;
             }
         }
     }
-
 }
+
+
+/**
+ * @brief MainWindow::get_averagePressureIndex Calculate average pressure index in a given time.
+ * @param beginTimestamp Beginning of the search period.
+ * @param endTimestamp End of the search period.
+ * @return Average pressure index.
+ */
+double MainWindow::get_averagePressureIndex(long long beginTimestamp, long long endTimestamp){
+    double avg_press_index = 0;
+    double avg_press_index_sum = 0;
+    int entries_count=0;
+    QString select_query = "SELECT * FROM pressure_index WHERE end_time > '";
+    select_query.append(QString::number(beginTimestamp));
+    select_query.append("' AND end_time < '");
+    select_query.append(QString::number(endTimestamp));
+    select_query.append("';");
+    //std::cout << "Calculating average pressure index with query: " << select_query.toLocal8Bit().data() << std::endl;
+    if (query.exec(select_query)){
+        while (query.next()){
+            avg_press_index_sum += query.value(3).toDouble();
+            entries_count++;
+        }
+        //std::cout << "Query found " << entries_count << " entries" << std::endl;
+        avg_press_index = avg_press_index_sum/entries_count;
+    }
+
+    if(entries_count==0){
+        avg_press_index=-1;
+    }
+    return avg_press_index;
+}
+
 
 void MainWindow::calculateWallProgress(){
     QString select_min_query = "SELECT min(time) FROM states;";

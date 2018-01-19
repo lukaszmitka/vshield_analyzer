@@ -54,6 +54,7 @@ private:
     void update_dayBeginTimeInDB(int dayBeginTime);
     double get_shieldCoalLineProgress(int shieldID, long long beginTimestamp, long long endTimestamp);
     double get_averageCoalLineProgress(long long beginTimestamp, long long endTimestamp);
+    double get_averagePressureIndex(long long beginTimestamp, long long endTimestamp);
     long long get_nextDay(long long timestamp, int dayBeginHour);
 
     //enum shield_params;
