@@ -264,7 +264,7 @@ void MainWindow::calculateWallProgress(){
                 insert_query.append(");");
                 std::cout << "query to execute: " << insert_query.toLocal8Bit().data() << std::endl;
                 if(query.exec(insert_query)){
-                    std::cout << "Succesfullt inserted entry" << std::endl;
+                    std::cout << "Succesfully inserted entry" << std::endl;
                 }
                 previous_timestamp = next_timestamp+1;
             }
