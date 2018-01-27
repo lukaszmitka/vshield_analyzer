@@ -380,7 +380,6 @@ void MainWindow::export_to_csv(){
     int interval;
     int intervalCounter;
 
-    // TODO dołożyć press_deriv do csv
     ExportCSVDialog exportDialog;
     if(exportDialog.exec()){
         // process data
