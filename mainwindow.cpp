@@ -378,37 +378,54 @@ void MainWindow::export_to_csv(){
     bool exportRawData;
     bool exportDerivative;
     int interval;
-    int intervalCounter;
 
     ExportCSVDialog exportDialog;
     if(exportDialog.exec()){
-        // process data
-        exportDialog.getDataToProcess(&exportIntegral, &exportRawData, &exportDerivative, &interval);
-        if(exportIntegral){
-            std::cout << "Will export integral" << std::endl;
+        if(exportDialog.getExportProcessedData())
+        {
+            exportDialog.getDataToProcess(&exportIntegral, &exportRawData, &exportDerivative, &interval);
+            if(exportIntegral){
+                std::cout << "Will export integral" << std::endl;
+            }
+            if(exportRawData){
+                std::cout << "Will export raw data with interval " << interval << std::endl;
+                //std::cout << "Interval counter: " << intervalCounter << std::endl;
+            }
+            if(exportDerivative){
+                std::cout << "Will export derivative with interval " << interval << std::endl;
+                //std::cout << "Interval counter: " << intervalCounter << std::endl;
+            }
+            if(!exportIntegral && !exportRawData && !exportDerivative){
+                std::cout << "No data to export selected" << std::endl;
+                QString statuBarMessage("No processed data to export selected");
+                statusBar()->showMessage(statuBarMessage,0);
+            } else {
+                exportProcessedData(exportDerivative, exportRawData, exportIntegral, interval);
+            }
         }
-        if(exportRawData){
-            std::cout << "Will export raw data with interval " << interval << std::endl;
-            intervalCounter = interval/30;
-            std::cout << "Interval counter: " << intervalCounter << std::endl;
+        if(exportDialog.getExportRawColumns()){
+
         }
-        if(exportDerivative){
-            std::cout << "Will export derivative with interval " << interval << std::endl;
-            intervalCounter = interval/30;
-            std::cout << "Interval counter: " << intervalCounter << std::endl;
+        if(exportDialog.getExportStackedColumns()){
+
         }
     } else {
         return;
     }
+}
 
-    if(!exportIntegral && !exportRawData && !exportDerivative){
-        std::cout << "No data to export selected" << std::endl;
-        QString statuBarMessage("No data to export selected");
-        statusBar()->showMessage(statuBarMessage,0);
-        return;
-    }
+void MainWindow::exportRawColumns(){
+
+}
+
+void MainWindow::exportStackedColumns(){
+
+}
+
+void MainWindow::exportProcessedData(bool exportDerivative, bool exportRawData, bool exportIntegral, int interval){
+    int intervalCounter = interval/30;
     // SQLite query for selecting shield
-    QString filename = QFileDialog::getSaveFileName(this, tr("Wybierz plik do zapisu"),tr(""),tr("Pliki csv (*.csv)"));
+    QString filename = QFileDialog::getSaveFileName(this, tr("Wybierz plik do zapisu danych przetworzonych"),tr(""),tr("Pliki csv (*.csv)"));
     if(filename.isNull()){
         std::cout << "No file selected" << std::endl;
         QString statuBarMessage("Operacja anulowana przez użytkownika");
@@ -554,6 +571,7 @@ void MainWindow::export_to_csv(){
             pressure_derivative.clear();
         }
     }
+
 }
 
 long MainWindow::getCoalLine(int shieldNo, long long time){

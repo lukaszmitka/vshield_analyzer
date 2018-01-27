@@ -133,7 +133,7 @@ bool ExportCSVDialog::getExportStackedColumns(){
 }
 
 bool ExportCSVDialog::getExportProcessedData(){
-    return exportRawColumns->isChecked();
+    return exportProcessedData->isChecked();
 }
 
 int ExportCSVDialog::getInterval(){
