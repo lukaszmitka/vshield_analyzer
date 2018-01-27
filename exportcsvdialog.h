@@ -16,6 +16,10 @@ public:
     ExportCSVDialog();
     void getDataToProcess(bool *integral, bool *rawData, int *interval);
     void getDataToProcess(bool *integral, bool *rawData, bool *derivative, int *interval);
+    bool getExportRawColumns();
+    bool getExportStackedColumns();
+    bool getExportProcessedData();
+    int getInterval();
 
 public slots:
     void set_active_interval_spinBox(bool active);

@@ -123,3 +123,19 @@ void ExportCSVDialog::getDataToProcess(bool *integral, bool *rawData, bool *deri
     *derivative = derivativeCheckBox->isChecked();
     *interval = intervalSpinBox->value();
 }
+
+bool ExportCSVDialog::getExportRawColumns(){
+    return exportRawColumns->isChecked();
+}
+
+bool ExportCSVDialog::getExportStackedColumns(){
+    return exportStackedColumns->isChecked();
+}
+
+bool ExportCSVDialog::getExportProcessedData(){
+    return exportRawColumns->isChecked();
+}
+
+int ExportCSVDialog::getInterval(){
+    return intervalSpinBox->value();
+}
