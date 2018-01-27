@@ -404,22 +404,202 @@ void MainWindow::export_to_csv(){
             }
         }
         if(exportDialog.getExportRawColumns()){
-
+            exportRawColumns(interval);
         }
         if(exportDialog.getExportStackedColumns()){
-
+            exportStackedColumns(interval);
         }
     } else {
         return;
     }
 }
 
-void MainWindow::exportRawColumns(){
+void MainWindow::exportRawColumns(int interval){
+    int intervalCounter = interval/30;
+    if(intervalCounter<=0){
+        intervalCounter=1;
+    }
+    QString filename = QFileDialog::getSaveFileName(this, tr("Wybierz plik do zapisu danych w formie szeregowej"),tr(""),tr("Pliki csv (*.csv)"));
+    if(filename.isNull()){
+        std::cout << "No file selected" << std::endl;
+        QString statuBarMessage("Operacja zapisu danych w formie szeregowej anulowana przez użytkownika");
+        statusBar()->showMessage(statuBarMessage,0);
+    } else {
+        QString statuBarMessage("Wybrany plik: ");
+        statuBarMessage.append(filename);
+        statusBar()->showMessage(statuBarMessage,0);
+        QFile csv_file(filename);
+        csv_file.open(QIODevice::WriteOnly);
+        QTextStream csv_out(&csv_file);   // we will serialize the data into the file
+        QString select_query;
+        std::vector<long long> timestampsVector;
+        select_query.append("SELECT * FROM timestamps;");
+        //std::cout << "Executing query" << std::endl;
+        if(!query.exec(select_query)){
+            std::cout << "Could not get timestamps from database." << std::endl;
+            return;
+        } else {
+            while(query.next()){
+                timestampsVector.push_back(query.value(0).toLongLong());
+            }
+        }
+        QString fileHeader_line1;
+        QString fileHeader_line2;
+        QString line;
+        QDateTime dateTime;
+        fileHeader_line1.append("data; czas; ");
+        fileHeader_line2.append(" ; ; ");
 
+        for (int i=0; i<number_of_shields; i=i+intervalCounter){
+            fileHeader_line1.append(std::to_string(i+1).c_str()).append("; ");
+            fileHeader_line2.append("Linia ocoisu [m]; ");
+            fileHeader_line1.append(std::to_string(i+1).c_str()).append("; ");
+            fileHeader_line2.append("Ciśnienie C1 [MPa]; ");
+            fileHeader_line1.append(std::to_string(i+1).c_str()).append("; ");
+            fileHeader_line2.append("Ciśnienie C2 [MPa]; ");
+            fileHeader_line1.append(std::to_string(i+1).c_str()).append("; ");
+            fileHeader_line2.append("Cśnienie średnie [MPa]; ");
+            fileHeader_line1.append(std::to_string(i+1).c_str()).append("; ");
+            fileHeader_line2.append("Droga przesuwnika [m]; ");
+        }
+        csv_out << fileHeader_line1 << endl;
+        csv_out << fileHeader_line2 << endl;
+
+        for (int i=0;i<timestampsVector.size(); i++){
+            //long shield;
+            long long time = timestampsVector[i];
+            double coalLine;
+            double pressure_1;
+            double pressure_2;
+            double pressure_avg;
+            double ramstroke;
+            line.clear();
+            select_query.clear();
+            select_query.append("SELECT * FROM states WHERE time='");
+            select_query.append(std::to_string(time).c_str());
+            select_query.append("';");
+            std::cout << "Selecting shied states with query: " << select_query.toLocal8Bit().data() << std::endl;
+            if(!query.exec(select_query)){
+                std::cout << "Could not get states for given timestamp from database." << std::endl;
+                return;
+            } else {
+                dateTime.setMSecsSinceEpoch(time);
+                line.append(dateTime.toString("dd.MM.yyyy; hh:mm:ss; ").toLocal8Bit());
+                QString statuBarMessage("Przetwarzanie danych w formie szeregowej dla daty: ");
+                statuBarMessage.append(dateTime.toString("dd.MM.yyyy; hh:mm:ss; ").toLocal8Bit());
+                statusBar()->showMessage(statuBarMessage,0);
+
+                while (query.next()) {
+                    pressure_1 = query.value(2).toDouble()/10;
+                    pressure_2 = query.value(3).toDouble()/10;
+                    pressure_avg=(pressure_1+pressure_2)/2;
+                    ramstroke = query.value(4).toDouble();
+                    coalLine = query.value(5).toDouble()/1000;
+                    line.append(std::to_string(coalLine).c_str()).append("; ");
+                    line.append(std::to_string(pressure_1).c_str()).append("; ");
+                    line.append(std::to_string(pressure_2).c_str()).append("; ");
+                    line.append(std::to_string(pressure_avg).c_str()).append("; ");
+                    line.append(std::to_string(ramstroke).c_str()).append("; ");
+                }
+                csv_out << line << endl;
+                line.clear();
+            }
+        }
+    }
 }
 
-void MainWindow::exportStackedColumns(){
 
+void MainWindow::exportStackedColumns(int interval){
+    int intervalCounter = interval/30;
+    int interval_check = 0;
+    if(intervalCounter<=0){
+        intervalCounter=1;
+    }
+
+    QString filename = QFileDialog::getSaveFileName(this, tr("Wybierz plik do zapisu danych w formie kolumnowej"),tr(""),tr("Pliki csv (*.csv)"));
+    if(filename.isNull()){
+        std::cout << "No file selected" << std::endl;
+        QString statuBarMessage("Operacja zapisu danych w formie kolumnowej anulowana przez użytkownika");
+        statusBar()->showMessage(statuBarMessage,0);
+    } else {
+        QString statuBarMessage("Wybrany plik: ");
+        statuBarMessage.append(filename);
+        statusBar()->showMessage(statuBarMessage,0);
+        QFile csv_file(filename);
+        csv_file.open(QIODevice::WriteOnly);
+        QTextStream csv_out(&csv_file);   // we will serialize the data into the file
+        QString select_query;
+        std::vector<long long> shieldsVector;
+        select_query.append("SELECT * FROM shields;");
+        //std::cout << "Executing query" << std::endl;
+        if(!query.exec(select_query)){
+            std::cout << "Could not get shields from database." << std::endl;
+            return;
+        } else {
+            while(query.next()){
+                shieldsVector.push_back(query.value(0).toLongLong());
+            }
+        }
+        QString fileHeader;
+        QString line;
+        QDateTime dateTime;
+        fileHeader.append("nr sekcji; data; czas; ");
+        fileHeader.append("Linia ocoisu [m]; ");
+        fileHeader.append("Ciśnienie C1 [MPa]; ");
+        fileHeader.append("Ciśnienie C2 [MPa]; ");
+        fileHeader.append("Cśnienie średnie [MPa]; ");
+        fileHeader.append("Droga przesuwnika [m]; ");
+        csv_out << fileHeader << endl;
+
+        long shield;
+        long long time;
+        double coalLine;
+        double pressure_1;
+        double pressure_2;
+        double pressure_avg;
+        double ramstroke;
+
+        for (int i=0;i<shieldsVector.size(); i++){
+            shield = shieldsVector[i];
+            line.clear();
+            select_query.clear();
+            select_query.append("SELECT * FROM states WHERE shield = '");
+            select_query.append(std::to_string(shield).c_str());
+            select_query.append("' ORDER BY time ASC;");
+            std::cout << "Selecting shield states with query: " << select_query.toLocal8Bit().data() << std::endl;
+            QString statuBarMessage("Przetwarzanie danych w formie kolumnowej dla obudowy: ");
+            statuBarMessage.append(QString::number(shield).toLocal8Bit().data());
+            statusBar()->showMessage(statuBarMessage,0);
+
+            if(!query.exec(select_query)){
+                std::cout << "Could not get states for given shield from database." << std::endl;
+                return;
+            } else {
+                while (query.next()) {
+                    if(interval_check==intervalCounter){
+                        time = query.value(0).toLongLong();
+                        dateTime.setMSecsSinceEpoch(time);
+                        pressure_1 = query.value(2).toDouble()/10;
+                        pressure_2 = query.value(3).toDouble()/10;
+                        pressure_avg=(pressure_1+pressure_2)/2;
+                        ramstroke = query.value(4).toDouble();
+                        coalLine = query.value(5).toDouble()/1000;
+                        line.append(std::to_string(shield).c_str()).append("; ");
+                        line.append(dateTime.toString("dd.MM.yyyy; hh:mm:ss; ").toLocal8Bit());
+                        line.append(std::to_string(coalLine).c_str()).append("; ");
+                        line.append(std::to_string(pressure_1).c_str()).append("; ");
+                        line.append(std::to_string(pressure_2).c_str()).append("; ");
+                        line.append(std::to_string(pressure_avg).c_str()).append("; ");
+                        line.append(std::to_string(ramstroke).c_str()).append("; ");
+                        csv_out << line << endl;
+                        line.clear();
+                        interval_check=0;
+                    }
+                    interval_check++;
+                }
+            }
+        }
+    }
 }
 
 void MainWindow::exportProcessedData(bool exportDerivative, bool exportRawData, bool exportIntegral, int interval){

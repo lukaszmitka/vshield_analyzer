@@ -57,8 +57,8 @@ private:
     double get_averagePressureIndex(long long beginTimestamp, long long endTimestamp);
     long long get_nextDay(long long timestamp, int dayBeginHour);
     void exportProcessedData(bool exportDerivative, bool exportRawData, bool exportIntegral, int interval);
-    void exportRawColumns();
-    void exportStackedColumns();
+    void exportRawColumns(int interval);
+    void exportStackedColumns(int interval);
 
     //enum shield_params;
     enum shield_params{
