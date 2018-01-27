@@ -19,9 +19,18 @@ public:
 
 public slots:
     void set_active_interval_spinBox(bool active);
+    void set_active_processing_checkboxes(bool active);
 
 private:
     QLabel *dataSelectLabel;
+    QLabel *processedDataParamLabel;
+    QLabel *intervalLayoutLabel;
+
+    QVBoxLayout *exportTypeLayout;
+
+    QCheckBox *exportRawColumns;
+    QCheckBox *exportStackedColumns;
+    QCheckBox *exportProcessedData;
 
     QCheckBox *integralCheckBox;
     QCheckBox *derivativeCheckBox;
@@ -39,6 +48,8 @@ private:
     QHBoxLayout *buttons_layout;
 
     QVBoxLayout *mainLayout;
+
+    void updateOkButtonCheckable();
 
 };
 
