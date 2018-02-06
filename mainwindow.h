@@ -100,6 +100,9 @@ private:
     QSqlQuery query;
     QSqlQuery coal_line_query;
     QSqlQuery pressure_index_query;
+    QSqlQuery average_pressure_index_query;
+    QSqlQuery average_progress_query;
+    QSqlQuery compressive_strength_query;
     QString coal_line_query_text;
     const static int DATABASE_APP_ID = 700612651;
     VShieldReader *vShieldReader;

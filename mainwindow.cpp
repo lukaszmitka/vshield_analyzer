@@ -170,20 +170,19 @@ void MainWindow::calculateAvgPressIndex(){
             while (previous_timestamp<max_timestamp){
                 next_timestamp = get_nextDay(previous_timestamp, day_begin_time);
                 double avgPressInd = get_averagePressureIndex(previous_timestamp, next_timestamp);
-                previous_timestamp = next_timestamp+1;
                 insert_query.clear();
                 insert_query.append("INSERT INTO average_pressure_index VALUES (");
                 insert_query.append(QString::number(previous_timestamp));
                 insert_query.append(", ");
                 insert_query.append(QString::number(next_timestamp));
                 insert_query.append(", ");
-                insert_query.append(QString::number(avgPressInd));
+                insert_query.append(std::to_string(avgPressInd).c_str());
                 insert_query.append(");");
                 std::cout << "query to execute: " << insert_query.toLocal8Bit().data() << std::endl;
                 if(query.exec(insert_query)){
                     std::cout << "Succesfully inserted entry" << std::endl;
                 }
-
+                previous_timestamp = next_timestamp+1;
             }
         }
     }
@@ -205,14 +204,15 @@ double MainWindow::get_averagePressureIndex(long long beginTimestamp, long long 
     select_query.append("' AND end_time < '");
     select_query.append(QString::number(endTimestamp));
     select_query.append("';");
-    //std::cout << "Calculating average pressure index with query: " << select_query.toLocal8Bit().data() << std::endl;
+    std::cout << "Calculating average pressure index with query: " << select_query.toLocal8Bit().data() << std::endl;
     if (query.exec(select_query)){
         while (query.next()){
             avg_press_index_sum += query.value(3).toDouble();
             entries_count++;
         }
-        //std::cout << "Query found " << entries_count << " entries" << std::endl;
+        std::cout << "Query found " << entries_count << " entries" << std::endl;
         avg_press_index = avg_press_index_sum/entries_count;
+        std::cout << "Average pressure is: " << avg_press_index << std::endl;
     }
 
     if(entries_count==0){
@@ -311,12 +311,12 @@ double MainWindow::get_shieldCoalLineProgress(int shieldID, long long beginTimes
     select_query.append(QString::number(beginTimestamp));
     select_query.append("' AND time < '");
     select_query.append(QString::number(endTimestamp));
-    select_query.append("';");
-    long long beginCoalLine;
-    long long endCoalLine;
+    select_query.append("' ORDER BY coal_line ASC;");
+    long long beginCoalLine = 0;
+    long long endCoalLine = 0;
     std::cout << "Obliczenie postępu sekcji z zapytaniem: " << select_query.toLocal8Bit().data() << std::endl;
     if (query.exec(select_query)){
-        if(query.next()){
+        while(query.next() && beginCoalLine==0){
             beginCoalLine = query.value(5).toInt();
         }
         while (query.next()){
@@ -611,6 +611,22 @@ void MainWindow::exportProcessedData(bool exportDerivative, bool exportRawData, 
         QString statuBarMessage("Operacja anulowana przez użytkownika");
         statusBar()->showMessage(statuBarMessage,0);
     } else {
+
+        if(!db.isOpen()){
+            std::cout << "Database not opened"<< std::endl;
+            return;
+        }
+        std::cout << "Working on: " << db.databaseName().toLocal8Bit().data() << std::endl;
+        average_pressure_index_query = QSqlQuery(db);
+        average_progress_query = QSqlQuery(db);
+        compressive_strength_query = QSqlQuery(db);
+        QString average_pressure_index_query_body;
+        QString average_progress_query_body;
+        QString compressive_strength_query_body;
+        double average_pressure_index;
+        double average_progress;
+        long long compressive_strength;
+
         QString statuBarMessage("Wybrany plik: ");
         statuBarMessage.append(filename);
         statusBar()->showMessage(statuBarMessage,0);
@@ -639,7 +655,7 @@ void MainWindow::exportProcessedData(bool exportDerivative, bool exportRawData, 
             csv_out << fileHeader << endl;
             fileHeader.clear();
         }
-        fileHeader.append("Numer obudowy; początek przestoju; koniec przestoju; czas przestoju [minuty]; linia węgla [m]");
+        fileHeader.append("Numer obudowy; początek przestoju; koniec przestoju; czas przestoju [minuty]; linia węgla [m]; średni postęp ściany [m]; średni wskaźnik ciśnienia; wytrzymałość na ściskanie");
         if(exportIntegral){
             fileHeader.append("; wartość całki");
         }
@@ -659,6 +675,9 @@ void MainWindow::exportProcessedData(bool exportDerivative, bool exportRawData, 
         std::vector<double> pressure_history;
         std::vector<double> pressure_derivative;
         while(query.next()){
+            average_pressure_index=0;
+            average_progress = 0;
+            compressive_strength = 0;
             shield = query.value(0).toInt();
             begin_time = query.value(1).toLongLong();
             end_time = query.value(2).toLongLong();
@@ -666,6 +685,40 @@ void MainWindow::exportProcessedData(bool exportDerivative, bool exportRawData, 
             stoppage_entries = query.value(4).toInt();
 
             coalLine = getCoalLineMeters(shield, begin_time);
+
+            average_progress_query_body.clear();
+            average_progress_query_body.append("SELECT * FROM average_progress WHERE begin_time <'");
+            average_progress_query_body.append(QString::number(end_time)).append("' AND end_time > '");
+            average_progress_query_body.append(QString::number(end_time)).append("';");
+            std::cout << "Searching for average progress with query: " << average_progress_query_body.toLocal8Bit().data() << std::endl;
+            average_progress_query.exec(average_progress_query_body);
+
+            average_pressure_index_query_body.clear();
+            average_pressure_index_query_body.append("SELECT * FROM average_pressure_index WHERE begin_time < '");
+            average_pressure_index_query_body.append(QString::number(end_time)).append("' AND end_time > '");
+            average_pressure_index_query_body.append(QString::number(end_time)).append("';");
+            std::cout << "Searching for average pressure with query: " << average_pressure_index_query_body.toLocal8Bit().data() << std::endl;
+            average_pressure_index_query.exec(average_pressure_index_query_body);
+
+            compressive_strength_query_body.clear();
+            compressive_strength_query_body.append("SELECT * FROM compressive_strength WHERE coal_line_begin < '");
+            compressive_strength_query_body.append(QString::number(coalLine)).append("' AND coal_line_end > '");
+            compressive_strength_query_body.append(QString::number(coalLine)).append("';");
+            std::cout << "Searching for compressive strength with query: " << compressive_strength_query_body.toLocal8Bit().data() << std::endl;
+            compressive_strength_query.exec(compressive_strength_query_body);
+
+            while (average_progress_query.next()) {
+                average_progress = average_progress_query.value(2).toDouble();
+            }
+
+            while(average_pressure_index_query.next()){
+                average_pressure_index = average_pressure_index_query.value(2).toDouble();
+            }
+
+            while(compressive_strength_query.next()){
+                compressive_strength = compressive_strength_query.value(2).toLongLong();
+            }
+
 
             QDateTime dateTime;
             QString line;
@@ -681,6 +734,11 @@ void MainWindow::exportProcessedData(bool exportDerivative, bool exportRawData, 
             line.append(std::to_string(stoppage_duration).c_str());
             line.append("; ");
             line.append(std::to_string(coalLine).c_str());
+
+            line.append("; ").append(QString::number(average_progress));
+            line.append("; ").append(QString::number(average_pressure_index));
+            line.append("; ").append(QString::number(compressive_strength));
+
             if(exportIntegral){
                 line.append("; ");
                 std::string integral_string = std::to_string(pressure_integral);
